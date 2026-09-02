@@ -2,11 +2,9 @@ package com.anthonyahellman.realityunfolded.command;
 
 import com.anthonyahellman.realityunfolded.RealityUnfolded;
 import com.anthonyahellman.realityunfolded.spell.SpellDebug;
-import com.anthonyahellman.realityunfolded.spell.SpellExecutionContext;
-import com.anthonyahellman.realityunfolded.spell.SpellExecutor;
+import com.anthonyahellman.realityunfolded.spell.SpellCastService;
 import com.anthonyahellman.realityunfolded.spell.SpellNode;
 import com.anthonyahellman.realityunfolded.spell.SpellParser;
-import com.anthonyahellman.realityunfolded.spell.SpellPhase;
 import com.anthonyahellman.realityunfolded.spell.SpellProgram;
 import com.anthonyahellman.realityunfolded.spell.SpellValidationException;
 import com.anthonyahellman.realityunfolded.spell.runtime.LinkRuntime;
@@ -17,14 +15,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-
-import java.util.UUID;
 
 @Mod.EventBusSubscriber(modid = RealityUnfolded.MOD_ID)
 public final class SpellCommands {
@@ -53,17 +46,8 @@ public final class SpellCommands {
     private static int cast(CommandSourceStack source, String words) {
         try {
             ServerPlayer player = source.getPlayerOrException();
-            SpellProgram program = SpellParser.parse(words);
-            UUID castId = UUID.randomUUID();
-            HitResult lookedAt = player.pick(64.0D, 0.0F, false);
-            BlockHitResult blockHit = lookedAt instanceof BlockHitResult hit ? hit : null;
-            Vec3 origin = player.getEyePosition().add(player.getLookAngle().scale(0.6D));
-            SpellExecutionContext execution = new SpellExecutionContext((ServerLevel) player.level(),
-                player.getUUID(), castId, castId, null, SpellPhase.CAST, origin, null, null,
-                blockHit == null ? null : blockHit.getBlockPos(),
-                blockHit == null ? null : blockHit.getDirection(), 1.0D);
-            SpellExecutor.begin(program, execution);
-            source.sendSuccess(() -> Component.literal("[RU] Cast " + castId + ": " + program.source()), false);
+            SpellCastService.CastResult result = SpellCastService.cast(player, words);
+            source.sendSuccess(() -> Component.literal("[RU] Cast " + result.castId() + ": " + result.source()), false);
             return 1;
         } catch (SpellValidationException exception) {
             SpellDebug.validation(words, exception.getMessage());

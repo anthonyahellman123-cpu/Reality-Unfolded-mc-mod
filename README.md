@@ -8,6 +8,23 @@ not contain hardcoded spell classes.
 
 `BOLT`, `BREAK`, `IGNITE`, `IMPACT`, `EXPLOSION`, `AMPLIFY`, `SPLIT(n)`, `LINK`, `HOME`
 
+## POC Grimoire
+
+Obtain the temporary Grimoire from the Tools & Utilities creative tab or with:
+
+```text
+/give @s reality_unfolded:grimoire
+```
+
+- Right-click while holding it to open the eight-slot player spell library.
+- Edit the temporary name and ordered word source, then validate and save.
+- `Save + Select` makes that slot the active spell.
+- Shift + right-click while holding the Grimoire casts the selected spell.
+
+Spell slots belong to persistent player data, not the physical ItemStack. The
+client UI only proposes edits; the server validates and stores them before
+returning an authoritative snapshot.
+
 ## Developer interface
 
 Commands require permission level 2.
