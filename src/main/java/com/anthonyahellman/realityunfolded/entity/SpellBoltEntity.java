@@ -49,6 +49,11 @@ public final class SpellBoltEntity extends ThrowableProjectile {
         setNoGravity(true);
     }
 
+    @Override
+    protected void defineSynchedData() {
+        // Gameplay state remains server-authoritative. Position/motion are synchronized by Entity.
+    }
+
     public static SpellBoltEntity create(ServerLevel level, SpellProgram program, UUID casterId,
                                          UUID castId, @Nullable UUID parentManifestationId,
                                          Vec3 position, Vec3 direction, double basePower) {
