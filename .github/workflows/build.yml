@@ -23,6 +23,15 @@ jobs:
         run: chmod +x gradlew
       - name: Test and build
         run: ./gradlew test build --stacktrace
+      - name: Dedicated-server load smoke test
+        run: |
+          mkdir -p run
+          echo 'eula=true' > run/eula.txt
+          set +e
+          timeout 120s ./gradlew runServer > server-smoke.log 2>&1
+          set -e
+          cat server-smoke.log
+          grep -q 'Done (' server-smoke.log
       - name: Upload testable JAR
         if: success()
         uses: actions/upload-artifact@v4
