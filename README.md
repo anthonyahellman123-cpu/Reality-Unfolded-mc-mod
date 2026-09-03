@@ -17,13 +17,24 @@ Obtain the temporary Grimoire from the Tools & Utilities creative tab or with:
 ```
 
 - Right-click while holding it to open the eight-slot player spell library.
-- Edit the temporary name and ordered word source, then validate and save.
-- `Save + Select` makes that slot the active spell.
-- Shift + right-click while holding the Grimoire casts the selected spell.
+- Edit the name and ordered word source, then validate it through the server.
+- Save, select an existing saved slot, or use `Save + Select` in one step.
+- Cast the active slot from the interface, or Shift + right-click while holding
+  the Grimoire after closing it.
 
 Spell slots belong to persistent player data, not the physical ItemStack. The
 client UI only proposes edits; the server validates and stores them before
 returning an authoritative snapshot.
+
+Acceptance-path example:
+
+```text
+Name:   Fuck That Guy
+Source: BOLT -> HOME -> IMPACT -> IGNITE
+```
+
+`Validate`, `Save`, `Select Saved`, and `Cast Selected` are server-backed
+actions. Failed validation leaves the current editor draft intact.
 
 ## Developer interface
 
@@ -81,6 +92,6 @@ creation, impacts, link lifecycle, validation failures, and termination.
 
 ## Scope boundary
 
-No progression, Domains, Void Embalming, Soul Curses, mana system, Grimoire UI,
-Workbench UI, reagents, targeting language, conditions, storage, functions, or
-final VFX are part of this proof of concept.
+No progression, Domains, Void Embalming, Soul Curses, mana system, final
+Grimoire artwork, Workbench UI, reagents, targeting language, conditions,
+functions, or final VFX are part of this proof of concept.

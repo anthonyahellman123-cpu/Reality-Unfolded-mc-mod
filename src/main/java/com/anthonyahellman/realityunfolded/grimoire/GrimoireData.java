@@ -66,6 +66,10 @@ public final class GrimoireData {
         return new Snapshot(selectedSlot(), slots);
     }
 
+    public static boolean isValidSlot(int slot) {
+        return slot >= 0 && slot < SLOT_COUNT;
+    }
+
     private static String sanitize(String value, int maximum, String fallback) {
         String safe = value == null ? fallback : value.strip();
         if (safe.isEmpty() && !fallback.isEmpty()) safe = fallback;

@@ -1,10 +1,7 @@
 package com.anthonyahellman.realityunfolded.network;
 
 import com.anthonyahellman.realityunfolded.grimoire.GrimoireData;
-import com.anthonyahellman.realityunfolded.item.ModItems;
-import com.anthonyahellman.realityunfolded.spell.SpellDebug;
-import com.anthonyahellman.realityunfolded.spell.SpellParser;
-import com.anthonyahellman.realityunfolded.spell.SpellValidationException;
+import com.anthonyahellman.realityunfolded.grimoire.GrimoireSpellService;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
@@ -32,26 +29,17 @@ public record SaveGrimoireSlotPacket(int slot, String name, String source, boole
     }
 
     private static void save(ServerPlayer player, SaveGrimoireSlotPacket packet) {
-        boolean holdingGrimoire = player.getMainHandItem().is(ModItems.GRIMOIRE.get())
-            || player.getOffhandItem().is(ModItems.GRIMOIRE.get());
-        if (!holdingGrimoire) {
-            ModNetwork.updateGrimoire(player, "INVALID: Hold the Grimoire while editing.", false);
+        if (!ModNetwork.isHoldingGrimoire(player)) {
+            ModNetwork.feedback(player, "INVALID: Hold the Grimoire while editing.", false);
             return;
         }
-        if (packet.slot < 0 || packet.slot >= GrimoireData.SLOT_COUNT) {
-            ModNetwork.updateGrimoire(player, "INVALID: Spell slot is out of range.", false);
-            return;
-        }
-        try {
-            SpellParser.parse(packet.source);
-            GrimoireData data = GrimoireData.get(player);
-            data.saveSlot(packet.slot, packet.name, packet.source);
-            if (packet.select) data.setSelectedSlot(packet.slot);
+        GrimoireSpellService.Result result = GrimoireSpellService.save(
+            GrimoireData.get(player), packet.slot, packet.name, packet.source, packet.select);
+        if (result.success()) {
             ModNetwork.updateGrimoire(player,
-                packet.select ? "VALID — saved and selected." : "VALID — spell saved.", true);
-        } catch (SpellValidationException exception) {
-            SpellDebug.validation(packet.source, exception.getMessage());
-            ModNetwork.updateGrimoire(player, "INVALID: " + exception.getMessage(), false);
+                result.message(), true);
+        } else {
+            ModNetwork.feedback(player, result.message(), false);
         }
     }
 }

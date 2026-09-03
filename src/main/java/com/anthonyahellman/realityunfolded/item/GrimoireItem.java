@@ -1,10 +1,7 @@
 package com.anthonyahellman.realityunfolded.item;
 
-import com.anthonyahellman.realityunfolded.grimoire.GrimoireData;
+import com.anthonyahellman.realityunfolded.grimoire.GrimoireSpellService;
 import com.anthonyahellman.realityunfolded.network.ModNetwork;
-import com.anthonyahellman.realityunfolded.spell.SpellCastService;
-import com.anthonyahellman.realityunfolded.spell.SpellDebug;
-import com.anthonyahellman.realityunfolded.spell.SpellValidationException;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -34,18 +31,7 @@ public final class GrimoireItem extends Item {
     }
 
     private static void castSelected(ServerPlayer player) {
-        GrimoireData data = GrimoireData.get(player);
-        GrimoireData.SpellSlot slot = data.slot(data.selectedSlot());
-        if (slot.source().isBlank()) {
-            player.displayClientMessage(Component.literal("[RU] Selected Grimoire slot is empty."), false);
-            return;
-        }
-        try {
-            SpellCastService.CastResult result = SpellCastService.cast(player, slot.source());
-            player.displayClientMessage(Component.literal("[RU] " + slot.name() + " — cast " + result.castId()), true);
-        } catch (SpellValidationException exception) {
-            SpellDebug.validation(slot.source(), exception.getMessage());
-            player.displayClientMessage(Component.literal("[RU] Invalid saved spell: " + exception.getMessage()), false);
-        }
+        GrimoireSpellService.Result result = GrimoireSpellService.castSelected(player);
+        player.displayClientMessage(Component.literal("[RU] " + result.message()), result.success());
     }
 }

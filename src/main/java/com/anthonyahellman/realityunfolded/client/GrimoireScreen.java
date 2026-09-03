@@ -3,8 +3,6 @@ package com.anthonyahellman.realityunfolded.client;
 import com.anthonyahellman.realityunfolded.grimoire.GrimoireData;
 import com.anthonyahellman.realityunfolded.network.GrimoireStatePacket;
 import com.anthonyahellman.realityunfolded.network.ModNetwork;
-import com.anthonyahellman.realityunfolded.spell.SpellParser;
-import com.anthonyahellman.realityunfolded.spell.SpellValidationException;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -15,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class GrimoireScreen extends Screen {
-    private static final int PANEL_HEIGHT = 284;
+    private static final int PANEL_HEIGHT = 234;
     private final List<GrimoireData.SpellSlot> slots = new ArrayList<>();
     private final List<Button> slotButtons = new ArrayList<>();
     private int selectedSlot;
@@ -45,30 +43,32 @@ public final class GrimoireScreen extends Screen {
         for (int i = 0; i < GrimoireData.SLOT_COUNT; i++) {
             final int slot = i;
             Button button = Button.builder(Component.empty(), ignored -> editSlot(slot))
-                .bounds(panelX + 10, panelY + 30 + i * 26, leftWidth - 10, 22).build();
+                .bounds(panelX + 10, panelY + 27 + i * 24, leftWidth - 10, 20).build();
             slotButtons.add(addRenderableWidget(button));
         }
 
-        nameBox = new EditBox(font, editorX, panelY + 50, editorWidth, 20,
+        nameBox = new EditBox(font, editorX, panelY + 41, editorWidth, 20,
             Component.translatable("screen.reality_unfolded.spell_name"));
         nameBox.setMaxLength(GrimoireData.MAX_NAME_LENGTH);
         addRenderableWidget(nameBox);
 
-        sourceBox = new EditBox(font, editorX, panelY + 98, editorWidth, 22,
+        sourceBox = new EditBox(font, editorX, panelY + 78, editorWidth, 22,
             Component.translatable("screen.reality_unfolded.spell_source"));
         sourceBox.setMaxLength(GrimoireData.MAX_SOURCE_LENGTH);
         addRenderableWidget(sourceBox);
 
-        int buttonY = panelY + 184;
+        int buttonY = panelY + 163;
         int half = Math.max(70, (editorWidth - 6) / 2);
-        addRenderableWidget(Button.builder(Component.literal("Validate"), ignored -> validateLocally())
-            .bounds(editorX, buttonY, half, 22).build());
+        addRenderableWidget(Button.builder(Component.literal("Validate"), ignored -> validateOnServer())
+            .bounds(editorX, buttonY, half, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Save"), ignored -> save(false))
-            .bounds(editorX + half + 6, buttonY, editorWidth - half - 6, 22).build());
+            .bounds(editorX + half + 6, buttonY, editorWidth - half - 6, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Select Saved"), ignored -> selectSaved())
+            .bounds(editorX, buttonY + 23, half, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Save + Select"), ignored -> save(true))
-            .bounds(editorX, buttonY + 28, editorWidth, 22).build());
-        addRenderableWidget(Button.builder(Component.literal("Done"), ignored -> onClose())
-            .bounds(editorX, buttonY + 66, editorWidth, 22).build());
+            .bounds(editorX + half + 6, buttonY + 23, editorWidth - half - 6, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Cast Selected"), ignored -> castSelected())
+            .bounds(editorX, buttonY + 46, editorWidth, 20).build());
 
         loadEditingSlot();
         refreshSlotLabels();
@@ -88,18 +88,24 @@ public final class GrimoireScreen extends Screen {
         sourceBox.setValue(slot.source());
     }
 
-    private void validateLocally() {
-        try {
-            SpellParser.parse(sourceBox.getValue());
-            setStatus("VALID", true);
-        } catch (SpellValidationException exception) {
-            setStatus("INVALID: " + exception.getMessage(), false);
-        }
+    private void validateOnServer() {
+        ModNetwork.validateDraft(sourceBox.getValue());
+        setStatus("Validating with server...", true);
     }
 
     private void save(boolean select) {
         ModNetwork.saveSlot(editingSlot, nameBox.getValue(), sourceBox.getValue(), select);
         setStatus("Validating with server...", true);
+    }
+
+    private void selectSaved() {
+        ModNetwork.selectSavedSlot(editingSlot);
+        setStatus("Selecting saved spell on server...", true);
+    }
+
+    private void castSelected() {
+        ModNetwork.castSelected();
+        setStatus("Casting selected spell on server...", true);
     }
 
     public void acceptServerState(GrimoireStatePacket state) {
@@ -108,6 +114,10 @@ public final class GrimoireScreen extends Screen {
         loadEditingSlot();
         refreshSlotLabels();
         setStatus(state.message(), state.valid());
+    }
+
+    public void acceptServerFeedback(String message, boolean valid) {
+        setStatus(message, valid);
     }
 
     private void applySnapshot(GrimoireStatePacket state) {
@@ -149,11 +159,16 @@ public final class GrimoireScreen extends Screen {
             panelY + PANEL_HEIGHT - 12, 0xFF8D5CFF);
         graphics.drawCenteredString(font, title, width / 2, panelY + 10, 0xFFE9DEFF);
         graphics.drawString(font, "Player Spell Library", panelX + 10, panelY + 18, 0xFFBBA7DC, false);
-        graphics.drawString(font, "Spell name", editorX, panelY + 38, 0xFFD8CAE9, false);
-        graphics.drawString(font, "Spell-language source", editorX, panelY + 84, 0xFFD8CAE9, false);
-        graphics.drawString(font, "Shift + right-click the held Grimoire to cast the selected slot.",
-            editorX, panelY + 130, 0xFFAFA2C4, false);
-        graphics.drawString(font, status == null ? "" : status, editorX, panelY + 158, statusColor, false);
+        graphics.drawString(font, "Spell name", editorX, panelY + 29, 0xFFD8CAE9, false);
+        graphics.drawString(font, "Ordered spell words", editorX, panelY + 66, 0xFFD8CAE9, false);
+        graphics.drawString(font, "BOLT  BREAK  IGNITE  IMPACT", editorX, panelY + 103,
+            0xFFBBA7DC, false);
+        graphics.drawString(font, "EXPLOSION  AMPLIFY  SPLIT(n)", editorX, panelY + 114,
+            0xFFBBA7DC, false);
+        graphics.drawString(font, "LINK  HOME", editorX, panelY + 125, 0xFFBBA7DC, false);
+        graphics.drawString(font, "Use spaces or -> between words.", editorX, panelY + 137,
+            0xFFAFA2C4, false);
+        graphics.drawString(font, status == null ? "" : status, editorX, panelY + 150, statusColor, false);
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
