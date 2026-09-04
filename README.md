@@ -1,4 +1,4 @@
-# Reality Unfolded — Spell-Language Proof of Concept
+# Reality Unfolded — Stage 2 Spellcraft + Void Caster
 
 Forge 1.20.1 proof of concept for an order-sensitive magical programming language.
 This build implements independent words and a generic resumable runtime. It does
@@ -6,35 +6,39 @@ not contain hardcoded spell classes.
 
 ## POC vocabulary
 
-`BOLT`, `BREAK`, `IGNITE`, `IMPACT`, `EXPLOSION`, `AMPLIFY`, `SPLIT(n)`, `LINK`, `HOME`
+`BOLT`, `BREAK`, `IGNITE`, `IMPACT`, `EXPLOSION`, `AMPLIFY`, `SPLIT`, `LINK`, `HOME`
 
-## POC Grimoire
+## Player workflow
 
-Obtain the temporary Grimoire from the Tools & Utilities creative tab or with:
+Obtain the Grimoire programmer and Void Caster Gauntlet from the Tools & Utilities
+creative tab or with:
 
 ```text
 /give @s reality_unfolded:grimoire
+/give @s reality_unfolded:void_caster_gauntlet
 ```
 
-- Right-click while holding it to open the eight-slot player spell library.
-- Edit the name and ordered word source, then validate it through the server.
-- Save, select an existing saved slot, or use `Save + Select` in one step.
-- Cast the active slot from the interface, or Shift + right-click while holding
-  the Grimoire after closing it.
+- Right-click the Grimoire to open the eight-slot visual Spellcraft programmer.
+- Click registered glyphs to append them to the current spell. Select a placed
+  glyph to move or remove it; no raw spell source is required.
+- Name the spell, validate it, and use `Save + Select` to make it active.
+- Close Spellcraft, hold the Void Caster Gauntlet, and right-click to cast the
+  active spell through normal gameplay.
 
 Spell slots belong to persistent player data, not the physical ItemStack. The
 client UI only proposes edits; the server validates and stores them before
 returning an authoritative snapshot.
 
-Acceptance-path example:
+Acceptance-path visual sequence:
 
 ```text
-Name:   Fuck That Guy
-Source: BOLT -> HOME -> IMPACT -> IGNITE
+Name: Fuck That Guy
+BOLT → HOME → IMPACT → IGNITE
 ```
 
-`Validate`, `Save`, `Select Saved`, and `Cast Selected` are server-backed
-actions. Failed validation leaves the current editor draft intact.
+Validation, saving, selection, and casting are server-authoritative. There is no
+GUI cast button: the gauntlet delegates the selected player-owned source to the
+same `SpellCastService` used by `/ru cast`.
 
 ## Developer interface
 
@@ -51,7 +55,7 @@ Both spaces and arrows are accepted as separators:
 
 ```text
 /ru cast BOLT -> HOME -> IMPACT -> IGNITE
-/ru cast BOLT SPLIT(3) LINK IMPACT IGNITE
+/ru cast BOLT SPLIT SPLIT LINK IMPACT IGNITE
 ```
 
 `AMPLIFY` is a postfix modifier. For example, `EXPLOSION AMPLIFY` doubles the
@@ -66,8 +70,10 @@ explosion's damage power while its effect radius remains fixed.
   generic `SpellExecutionContext`.
 - `IMPACT` suspends the current branch and stores downstream node IDs on the
   manifestation. Collision resumes those nodes in an impact context.
-- `SPLIT(n)` creates real server-side child manifestation entities. Each child
-  independently resumes the downstream graph.
+- `SPLIT` replaces every compatible manifestation with two server-side child
+  manifestations. Repeating the glyph doubles the set: 1→2→4. Legacy
+  developer input `SPLIT(n)` remains accepted, and validation caps a program at
+  an estimated 64 manifestations.
 - `HOME` installs continuous server-side steering on the current manifestation.
 - `LINK` registers manifestations in a server runtime relationship keyed by cast
   and graph node. `/ru links` exposes live relationship/member counts.
@@ -83,8 +89,9 @@ explosion's damage power while its effect radius remains fixed.
 /ru cast BOLT IMPACT EXPLOSION AMPLIFY
 /ru cast BREAK
 /ru cast BOLT HOME IMPACT IGNITE
-/ru cast BOLT SPLIT(3) IMPACT IGNITE
-/ru cast BOLT SPLIT(3) LINK IMPACT IGNITE
+/ru cast BOLT SPLIT IMPACT IGNITE
+/ru cast BOLT SPLIT SPLIT HOME IMPACT IGNITE
+/ru cast BOLT SPLIT LINK IMPACT IGNITE
 ```
 
 The log prefix `[RU SPELL]` exposes cast IDs, executed nodes, context, child

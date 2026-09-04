@@ -12,14 +12,15 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public record GrimoireStatePacket(int selectedSlot, List<GrimoireData.SpellSlot> slots,
-                                  String message, boolean valid, boolean openScreen) {
+                                  String message, boolean valid, int manifestations, boolean openScreen) {
     public GrimoireStatePacket {
         slots = List.copyOf(slots);
     }
 
     public static GrimoireStatePacket from(GrimoireData.Snapshot snapshot, String message,
-                                           boolean valid, boolean openScreen) {
-        return new GrimoireStatePacket(snapshot.selectedSlot(), snapshot.slots(), message, valid, openScreen);
+                                           boolean valid, int manifestations, boolean openScreen) {
+        return new GrimoireStatePacket(snapshot.selectedSlot(), snapshot.slots(), message, valid,
+            manifestations, openScreen);
     }
 
     public static void encode(GrimoireStatePacket packet, FriendlyByteBuf buffer) {
@@ -31,6 +32,7 @@ public record GrimoireStatePacket(int selectedSlot, List<GrimoireData.SpellSlot>
         }
         buffer.writeUtf(packet.message, 256);
         buffer.writeBoolean(packet.valid);
+        buffer.writeVarInt(packet.manifestations + 1);
         buffer.writeBoolean(packet.openScreen);
     }
 
@@ -44,7 +46,7 @@ public record GrimoireStatePacket(int selectedSlot, List<GrimoireData.SpellSlot>
                 buffer.readUtf(GrimoireData.MAX_SOURCE_LENGTH)));
         }
         return new GrimoireStatePacket(selected, slots, buffer.readUtf(256),
-            buffer.readBoolean(), buffer.readBoolean());
+            buffer.readBoolean(), buffer.readVarInt() - 1, buffer.readBoolean());
     }
 
     public static void handle(GrimoireStatePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {

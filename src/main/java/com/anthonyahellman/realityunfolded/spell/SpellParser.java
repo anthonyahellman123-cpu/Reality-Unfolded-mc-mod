@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 public final class SpellParser {
     private static final Pattern ARGUMENT = Pattern.compile("([A-Z_]+)\\(([-+]?\\d+)\\)");
     private static final int MAX_SPLIT_CHILDREN = 16;
+    private static final int DEFAULT_SPLIT_CHILDREN = 2;
 
     private SpellParser() {}
 
@@ -35,9 +36,7 @@ public final class SpellParser {
             if (matcher.matches() && word != SpellWordId.SPLIT) {
                 throw new SpellValidationException(word + " does not accept an integer argument");
             }
-            if (!matcher.matches() && word == SpellWordId.SPLIT) {
-                throw new SpellValidationException("SPLIT requires a child count, for example SPLIT(3)");
-            }
+            if (!matcher.matches() && word == SpellWordId.SPLIT) argument = DEFAULT_SPLIT_CHILDREN;
             if (word == SpellWordId.SPLIT && (argument < 2 || argument > MAX_SPLIT_CHILDREN)) {
                 throw new SpellValidationException("SPLIT child count must be from 2 to " + MAX_SPLIT_CHILDREN);
             }
@@ -60,7 +59,29 @@ public final class SpellParser {
             List<Integer> next = i + 1 < nodes.size() ? List.of(i + 1) : List.of();
             immutable.add(new SpellNode(node.id, node.word, node.argument, node.powerMultiplier, next));
         }
-        return new SpellProgram(0, immutable, source.trim());
+        SpellProgram program = new SpellProgram(0, immutable, source.trim());
+        validateRuntimeRequirements(program);
+        int manifestations = SpellProgramAnalysis.estimatedManifestations(program);
+        if (manifestations > SpellProgramAnalysis.MAX_MANIFESTATIONS) {
+            throw new SpellValidationException("Spell may create more than "
+                + SpellProgramAnalysis.MAX_MANIFESTATIONS + " manifestations");
+        }
+        return new SpellProgram(0, immutable, SpellProgramAnalysis.canonicalSource(program));
+    }
+
+    private static void validateRuntimeRequirements(SpellProgram program) throws SpellValidationException {
+        boolean hasManifestation = false;
+        for (SpellNode node : program.nodes()) {
+            if (node.word() == SpellWordId.BOLT) hasManifestation = true;
+            if (!hasManifestation && requiresManifestation(node.word())) {
+                throw new SpellValidationException(node.word() + " requires a preceding BOLT manifestation");
+            }
+        }
+    }
+
+    private static boolean requiresManifestation(SpellWordId word) {
+        return word == SpellWordId.HOME || word == SpellWordId.IMPACT
+            || word == SpellWordId.SPLIT || word == SpellWordId.LINK;
     }
 
     private static int parseInteger(String value, String token) throws SpellValidationException {

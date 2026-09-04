@@ -30,16 +30,16 @@ public record SaveGrimoireSlotPacket(int slot, String name, String source, boole
 
     private static void save(ServerPlayer player, SaveGrimoireSlotPacket packet) {
         if (!ModNetwork.isHoldingGrimoire(player)) {
-            ModNetwork.feedback(player, "INVALID: Hold the Grimoire while editing.", false);
+            ModNetwork.feedback(player, "INVALID: Hold the Grimoire while editing.", false, -1);
             return;
         }
         GrimoireSpellService.Result result = GrimoireSpellService.save(
             GrimoireData.get(player), packet.slot, packet.name, packet.source, packet.select);
         if (result.success()) {
             ModNetwork.updateGrimoire(player,
-                result.message(), true);
+                result.message(), true, result.manifestations());
         } else {
-            ModNetwork.feedback(player, result.message(), false);
+            ModNetwork.feedback(player, result.message(), false, -1);
         }
     }
 }

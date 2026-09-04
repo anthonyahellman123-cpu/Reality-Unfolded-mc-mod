@@ -19,7 +19,7 @@ public final class ClientGrimoireHandler {
     public static void accept(GrimoireFeedbackPacket packet) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen instanceof GrimoireScreen screen) {
-            screen.acceptServerFeedback(packet.message(), packet.valid());
+            screen.acceptServerFeedback(packet.message(), packet.valid(), packet.manifestations());
         }
     }
 }

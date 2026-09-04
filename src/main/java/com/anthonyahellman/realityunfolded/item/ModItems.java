@@ -13,6 +13,8 @@ public final class ModItems {
 
     public static final RegistryObject<Item> GRIMOIRE = ITEMS.register("grimoire",
         () -> new GrimoireItem(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> VOID_CASTER_GAUNTLET = ITEMS.register("void_caster_gauntlet",
+        () -> new VoidCasterGauntletItem(new Item.Properties().stacksTo(1)));
 
     private ModItems() {}
 
