@@ -22,19 +22,24 @@ import java.util.Map;
 public final class GrimoireScreen extends Screen {
     private static final int PANEL_HEIGHT = 236;
     private static final int VISIBLE_PROGRAM_NODES = 6;
+    private static final int VISIBLE_GLYPHS = 8;
     private final List<GrimoireData.SpellSlot> slots = new ArrayList<>();
     private final List<Button> slotButtons = new ArrayList<>();
     private final List<Button> programButtons = new ArrayList<>();
     private final Map<Button, SpellWordPresentation> glyphButtons = new LinkedHashMap<>();
+    private final List<SpellWordPresentation> presentations = WordRegistry.presentations();
     private int selectedSlot;
     private int editingSlot;
     private int selectedNode = -1;
     private int programScroll;
+    private int glyphScroll;
     private String status;
     private int statusColor;
     private int manifestations = -1;
     private VisualSpellDraft draft = new VisualSpellDraft();
     private EditBox nameBox;
+    private Button parameterDown;
+    private Button parameterUp;
 
     public GrimoireScreen(GrimoireStatePacket state) {
         super(Component.translatable("screen.reality_unfolded.grimoire"));
@@ -59,17 +64,20 @@ public final class GrimoireScreen extends Screen {
         }
 
         int glyphButtonWidth = (layout.glyphWidth - 5) / 2;
-        List<SpellWordPresentation> presentations = WordRegistry.presentations();
-        for (int i = 0; i < presentations.size(); i++) {
-            SpellWordPresentation presentation = presentations.get(i);
+        for (int i = 0; i < VISIBLE_GLYPHS; i++) {
+            final int visibleIndex = i;
             int column = i % 2;
             int row = i / 2;
-            Button button = Button.builder(Component.literal(presentation.glyph() + " " + presentation.displayName()),
-                ignored -> append(presentation))
+            Button button = Button.builder(Component.empty(), ignored -> appendVisibleGlyph(visibleIndex))
                 .bounds(layout.glyphX + column * (glyphButtonWidth + 5), layout.panelY + 42 + row * 24,
                     glyphButtonWidth, 20).build();
-            glyphButtons.put(addRenderableWidget(button), presentation);
+            addRenderableWidget(button);
+            glyphButtons.put(button, null);
         }
+        addRenderableWidget(Button.builder(Component.literal("◀"), ignored -> scrollGlyphs(-VISIBLE_GLYPHS))
+            .bounds(layout.glyphX, layout.panelY + 139, glyphButtonWidth, 18).build());
+        addRenderableWidget(Button.builder(Component.literal("▶"), ignored -> scrollGlyphs(VISIBLE_GLYPHS))
+            .bounds(layout.glyphX + glyphButtonWidth + 5, layout.panelY + 139, glyphButtonWidth, 18).build());
 
         nameBox = new EditBox(font, layout.editorX, layout.panelY + 31,
             Math.max(80, layout.editorWidth), 20, Component.translatable("screen.reality_unfolded.spell_name"));
@@ -85,14 +93,18 @@ public final class GrimoireScreen extends Screen {
         }
 
         int manipulationY = layout.panelY + 187;
-        int third = Math.max(24, (layout.editorWidth - 8) / 3);
+        int fifth = Math.max(16, (layout.editorWidth - 16) / 5);
         addRenderableWidget(Button.builder(Component.literal("↑"), ignored -> moveSelected(-1))
-            .bounds(layout.editorX, manipulationY, third, 18).build());
+            .bounds(layout.editorX, manipulationY, fifth, 18).build());
         addRenderableWidget(Button.builder(Component.literal("↓"), ignored -> moveSelected(1))
-            .bounds(layout.editorX + third + 4, manipulationY, third, 18).build());
+            .bounds(layout.editorX + fifth + 4, manipulationY, fifth, 18).build());
+        parameterDown = addRenderableWidget(Button.builder(Component.literal("−"), ignored -> adjustParameter(-1))
+            .bounds(layout.editorX + (fifth + 4) * 2, manipulationY, fifth, 18).build());
+        parameterUp = addRenderableWidget(Button.builder(Component.literal("+"), ignored -> adjustParameter(1))
+            .bounds(layout.editorX + (fifth + 4) * 3, manipulationY, fifth, 18).build());
         addRenderableWidget(Button.builder(Component.literal("Remove"), ignored -> removeSelected())
-            .bounds(layout.editorX + (third + 4) * 2, manipulationY,
-                layout.editorWidth - (third + 4) * 2, 18).build());
+            .bounds(layout.editorX + (fifth + 4) * 4, manipulationY,
+                layout.editorWidth - (fifth + 4) * 4, 18).build());
 
         int actionWidth = Math.max(20, (layout.editorWidth - 12) / 4);
         addRenderableWidget(Button.builder(Component.literal("Validate"), ignored -> validateOnServer())
@@ -107,8 +119,20 @@ public final class GrimoireScreen extends Screen {
 
         loadEditingSlot();
         refreshSlotLabels();
+        refreshGlyphButtons();
         refreshProgramButtons();
         setInitialFocus(nameBox);
+    }
+
+    private void appendVisibleGlyph(int visibleIndex) {
+        int index = glyphScroll + visibleIndex;
+        if (index < presentations.size()) append(presentations.get(index));
+    }
+
+    private void scrollGlyphs(int amount) {
+        int maximum = Math.max(0, presentations.size() - VISIBLE_GLYPHS);
+        glyphScroll = Math.max(0, Math.min(maximum, glyphScroll + amount));
+        refreshGlyphButtons();
     }
 
     private void append(SpellWordPresentation presentation) {
@@ -139,6 +163,11 @@ public final class GrimoireScreen extends Screen {
         draft.remove(selectedNode);
         selectedNode = draft.nodes().isEmpty() ? -1 : Math.min(selectedNode, draft.nodes().size() - 1);
         ensureSelectedVisible();
+        draftChanged();
+    }
+
+    private void adjustParameter(int direction) {
+        draft.adjustParameter(selectedNode, direction);
         draftChanged();
     }
 
@@ -230,8 +259,31 @@ public final class GrimoireScreen extends Screen {
             if (index < nodes.size()) {
                 SpellWordPresentation presentation = WordRegistry.presentation(nodes.get(index).word());
                 String marker = index == selectedNode ? "◆ " : "  ";
+                VisualSpellDraft.GlyphNode glyphNode = nodes.get(index);
+                String parameter = presentation.hasPlayerParameter()
+                    ? " (" + glyphNode.integerArgument() + " " + presentation.parameter().unit() + ")" : "";
+                String branch = glyphNode.word().name().equals("IF") ? " [T↓ / F END]" : "";
                 button.setMessage(Component.literal(marker + (index + 1) + ". "
-                    + presentation.glyph() + "  " + presentation.displayName()));
+                    + presentation.glyph() + "  " + presentation.displayName() + parameter + branch));
+            }
+        }
+        boolean parameterized = selectedNode >= 0 && selectedNode < nodes.size()
+            && WordRegistry.presentation(nodes.get(selectedNode).word()).hasPlayerParameter();
+        if (parameterDown != null) parameterDown.active = parameterized;
+        if (parameterUp != null) parameterUp.active = parameterized;
+    }
+
+    private void refreshGlyphButtons() {
+        int visibleIndex = 0;
+        for (Button button : new ArrayList<>(glyphButtons.keySet())) {
+            int index = glyphScroll + visibleIndex++;
+            boolean visible = index < presentations.size();
+            button.visible = visible;
+            button.active = visible;
+            if (visible) {
+                SpellWordPresentation presentation = presentations.get(index);
+                button.setMessage(Component.literal(presentation.glyph() + " " + presentation.displayName()));
+                glyphButtons.put(button, presentation);
             }
         }
     }
@@ -252,6 +304,11 @@ public final class GrimoireScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        Layout layout = layout();
+        if (mouseX >= layout.glyphX && mouseX <= layout.glyphX + layout.glyphWidth) {
+            scrollGlyphs(-(int) Math.signum(delta) * 2);
+            return true;
+        }
         int maximum = Math.max(0, draft.nodes().size() - VISIBLE_PROGRAM_NODES);
         if (maximum > 0) {
             programScroll = Math.max(0, Math.min(maximum, programScroll - (int) Math.signum(delta)));
@@ -278,18 +335,21 @@ public final class GrimoireScreen extends Screen {
         graphics.drawString(font, "GLYPHS", layout.glyphX, layout.panelY + 27, 0xFFBBA7DC, false);
         graphics.drawString(font, "CURRENT SPELL", layout.editorX, layout.panelY + 18, 0xFFBBA7DC, false);
 
+        graphics.drawString(font, "Glyphs " + (glyphScroll + 1) + "–"
+            + Math.min(presentations.size(), glyphScroll + VISIBLE_GLYPHS) + "/" + presentations.size(),
+            layout.glyphX, layout.panelY + 160, 0xFFAFA2C4, false);
         graphics.drawString(font, "Void Caster: " + slots.get(selectedSlot).name(), layout.glyphX,
-            layout.panelY + 168, 0xFFD8CAE9, false);
+            layout.panelY + 172, 0xFFD8CAE9, false);
         graphics.drawString(font, manifestations >= 0 ? "Draft manifestations: " + manifestations
-            : "Draft manifestations: —", layout.glyphX, layout.panelY + 180, 0xFFAFA2C4, false);
+            : "Draft manifestations: —", layout.glyphX, layout.panelY + 184, 0xFFAFA2C4, false);
         if (selectedNode >= 0 && selectedNode < draft.nodes().size()) {
             SpellWordPresentation selected = WordRegistry.presentation(draft.nodes().get(selectedNode).word());
             graphics.drawString(font, trim(selected.category() + ": " + selected.description(),
-                layout.panelWidth - layout.slotWidth - 22), layout.glyphX, layout.panelY + 194,
+                layout.glyphWidth), layout.glyphX, layout.panelY + 196,
                 0xFFAFA2C4, false);
         }
         graphics.drawString(font, status == null ? "" : trim(status,
-            layout.panelWidth - layout.slotWidth - 22), layout.glyphX, layout.panelY + 219,
+            layout.glyphWidth), layout.glyphX, layout.panelY + 219,
             statusColor, false);
 
         super.render(graphics, mouseX, mouseY, partialTick);

@@ -11,7 +11,22 @@ public enum SpellWordId {
     AMPLIFY(false),
     SPLIT(false),
     LINK(false),
-    HOME(false);
+    HOME(false),
+    SELF(false),
+    ENTITY(false),
+    PLAYER(false),
+    NEAREST(false),
+    HOSTILE(false),
+    TOUCH(false),
+    SENSE(false),
+    IF(false),
+    NOT(false),
+    DELAY(false),
+    RELEASE(false),
+    ACCELERATE(false),
+    GRAVITY(false),
+    ANTI_GRAVITY(false),
+    ORB(true);
 
     private final boolean acceptsPower;
 

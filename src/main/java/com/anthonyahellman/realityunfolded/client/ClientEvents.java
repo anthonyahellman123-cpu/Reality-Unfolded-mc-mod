@@ -14,5 +14,6 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.SPELL_BOLT.get(), SpellBoltRenderer::new);
+        event.registerEntityRenderer(ModEntities.SPELL_ORB.get(), SpellOrbRenderer::new);
     }
 }

@@ -38,4 +38,25 @@ public final class SpellDebug {
             context.entityTarget() == null ? "none" : context.entityTarget().getUUID(),
             context.blockTarget() == null ? "none" : context.blockTarget());
     }
+
+    public static void target(SpellExecutionContext context, Object target) {
+        RealityUnfolded.LOGGER.info("[RU SPELL] TARGET_RESOLVED cast={} branch={} target={} block={}",
+            context.castId(), context.branchId(), target == null ? "none" : target,
+            context.blockTarget() == null ? "none" : context.blockTarget());
+    }
+
+    public static void context(SpellExecutionContext context, String detail) {
+        RealityUnfolded.LOGGER.info("[RU SPELL] CONTEXT_REFINED cast={} branch={} detail={}",
+            context.castId(), context.branchId(), detail);
+    }
+
+    public static void condition(SpellExecutionContext context, String source, boolean result) {
+        RealityUnfolded.LOGGER.info("[RU SPELL] CONDITION_RESULT cast={} branch={} source={} result={}",
+            context.castId(), context.branchId(), source, result);
+    }
+
+    public static void branch(SpellExecutionContext context, int node, String selected) {
+        RealityUnfolded.LOGGER.info("[RU SPELL] BRANCH_SELECTED cast={} branch={} node={} selected={}",
+            context.castId(), context.branchId(), node, selected);
+    }
 }

@@ -1,7 +1,7 @@
 package com.anthonyahellman.realityunfolded.spell.runtime;
 
 import com.anthonyahellman.realityunfolded.RealityUnfolded;
-import com.anthonyahellman.realityunfolded.entity.SpellBoltEntity;
+import com.anthonyahellman.realityunfolded.entity.SpellManifestationEntity;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -20,25 +20,26 @@ public final class LinkRuntime {
 
     private LinkRuntime() {}
 
-    public static synchronized void register(ServerLevel level, UUID castId, int nodeId, SpellBoltEntity bolt) {
+    public static synchronized void register(ServerLevel level, UUID castId, int nodeId,
+                                             SpellManifestationEntity manifestation) {
         LinkKey key = new LinkKey(castId, nodeId);
         LinkedHashSet<UUID> members = LINKS.computeIfAbsent(level, ignored -> new java.util.HashMap<>())
             .computeIfAbsent(key, ignored -> new LinkedHashSet<>());
-        if (members.add(bolt.getUUID())) {
+        if (members.add(manifestation.getUUID())) {
             RealityUnfolded.LOGGER.info("[RU SPELL] LINK_CREATION cast={} node={} member={} memberCount={}",
-                castId, nodeId, bolt.manifestationId(), members.size());
+                castId, nodeId, manifestation.manifestationId(), members.size());
         }
     }
 
-    public static synchronized void unregister(ServerLevel level, SpellBoltEntity bolt) {
+    public static synchronized void unregister(ServerLevel level, SpellManifestationEntity manifestation) {
         Map<LinkKey, LinkedHashSet<UUID>> levelLinks = LINKS.get(level);
         if (levelLinks == null) return;
         Iterator<Map.Entry<LinkKey, LinkedHashSet<UUID>>> iterator = levelLinks.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<LinkKey, LinkedHashSet<UUID>> entry = iterator.next();
-            if (entry.getValue().remove(bolt.getUUID())) {
+            if (entry.getValue().remove(manifestation.getUUID())) {
                 RealityUnfolded.LOGGER.info("[RU SPELL] LINK_REMOVAL cast={} node={} member={} remaining={}",
-                    entry.getKey().castId(), entry.getKey().nodeId(), bolt.manifestationId(), entry.getValue().size());
+                    entry.getKey().castId(), entry.getKey().nodeId(), manifestation.manifestationId(), entry.getValue().size());
             }
             if (entry.getValue().isEmpty()) iterator.remove();
         }
@@ -55,7 +56,7 @@ public final class LinkRuntime {
         return levelLinks == null ? 0 : levelLinks.values().stream().mapToInt(LinkedHashSet::size).sum();
     }
 
-    public static synchronized void tickVisuals(ServerLevel level, SpellBoltEntity caller) {
+    public static synchronized void tickVisuals(ServerLevel level, SpellManifestationEntity caller) {
         if (caller.tickCount % 4 != 0) return;
         Map<LinkKey, LinkedHashSet<UUID>> levelLinks = LINKS.get(level);
         if (levelLinks == null) return;
