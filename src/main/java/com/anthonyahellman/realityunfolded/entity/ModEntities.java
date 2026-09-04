@@ -18,6 +18,12 @@ public final class ModEntities {
             .clientTrackingRange(64)
             .updateInterval(1)
             .build(RealityUnfolded.MOD_ID + ":spell_bolt"));
+    public static final RegistryObject<EntityType<SpellOrbEntity>> SPELL_ORB = ENTITIES.register("spell_orb",
+        () -> EntityType.Builder.<SpellOrbEntity>of(SpellOrbEntity::new, MobCategory.MISC)
+            .sized(0.7F, 0.7F)
+            .clientTrackingRange(64)
+            .updateInterval(1)
+            .build(RealityUnfolded.MOD_ID + ":spell_orb"));
 
     private ModEntities() {}
 

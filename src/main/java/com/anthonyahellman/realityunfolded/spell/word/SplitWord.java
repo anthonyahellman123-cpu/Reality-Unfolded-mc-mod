@@ -10,7 +10,7 @@ public final class SplitWord implements SpellWord {
     @Override
     public WordOutcome execute(SpellProgram program, SpellNode node, SpellExecutionContext context) {
         if (context.manifestation() == null) return WordOutcome.terminate(context);
-        context.manifestation().split(node.integerArgument(), node.next());
+        context.manifestation().split(node.integerArgument(), node.next(), context);
         return WordOutcome.suspend(context);
     }
 }

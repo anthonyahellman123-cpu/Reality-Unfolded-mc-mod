@@ -21,7 +21,7 @@ public final class SpellCastService {
         SpellExecutionContext execution = new SpellExecutionContext((ServerLevel) player.level(),
             player.getUUID(), castId, castId, null, SpellPhase.CAST, origin, null, null,
             blockHit == null ? null : blockHit.getBlockPos(),
-            blockHit == null ? null : blockHit.getDirection(), 1.0D);
+            blockHit == null ? null : blockHit.getDirection(), null, null, false, false, 1.0D);
         SpellExecutor.begin(program, execution);
         return new CastResult(castId, program.source());
     }

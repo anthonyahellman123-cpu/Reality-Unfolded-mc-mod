@@ -1,5 +1,6 @@
 package com.anthonyahellman.realityunfolded.spell;
 
+import com.anthonyahellman.realityunfolded.spell.word.IfWord;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -77,6 +78,7 @@ class SpellParserTest {
             "BOLT IMPACT EXPLOSION AMPLIFY",
             "BOLT SPLIT IMPACT IGNITE",
             "BOLT SPLIT SPLIT HOME IMPACT IGNITE",
+            "BOLT IMPACT IGNITE AMPLIFY EXPLOSION",
             "BREAK",
             "BOLT LINK IMPACT IGNITE"
         );
@@ -84,6 +86,91 @@ class SpellParserTest {
         for (String source : programs) {
             assertTrue(SpellParser.parse(source).nodes().size() > 0, source);
         }
+    }
+
+    @Test
+    void explicitTargetQueriesCompileWithoutChangingHomeIntoASelector() throws Exception {
+        SpellProgram hostile = SpellParser.parse(
+            "ENTITY HOSTILE NEAREST BOLT HOME IMPACT IGNITE");
+        SpellProgram player = SpellParser.parse("PLAYER NEAREST BOLT HOME");
+
+        assertEquals("ENTITY HOSTILE NEAREST BOLT HOME IMPACT IGNITE", hostile.source());
+        assertEquals(SpellWordId.PLAYER, player.node(0).word());
+        assertEquals(SpellWordId.NEAREST, player.node(1).word());
+    }
+
+    @Test
+    void ifCompilesToTrueContinuationAndExplicitFalseTerminal() throws Exception {
+        SpellProgram program = SpellParser.parse(
+            "SENSE ENTITY HOSTILE IF BOLT HOME IMPACT IGNITE");
+        SpellNode branch = program.node(3);
+
+        assertEquals(List.of(4, SpellProgram.TERMINAL), branch.next());
+        assertEquals(4, IfWord.selectBranch(branch, true));
+        assertEquals(SpellProgram.TERMINAL, IfWord.selectBranch(branch, false));
+    }
+
+    @Test
+    void notAndIfHaveRealConditionRequirements() throws Exception {
+        SpellProgram negated = SpellParser.parse("SENSE ENTITY HOSTILE NOT IF BREAK");
+        assertEquals(SpellWordId.NOT, negated.node(3).word());
+        assertEquals(SpellWordId.IF, negated.node(4).word());
+
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("NOT BOLT"));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("IF BOLT"));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("HOSTILE BOLT"));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("NEAREST BOLT"));
+    }
+
+    @Test
+    void delayUsesBoundedCanonicalTickParameterAndReleaseBoundary() throws Exception {
+        SpellProgram program = SpellParser.parse("BOLT DELAY(20) RELEASE ACCELERATE");
+
+        assertEquals(20, program.node(1).integerArgument());
+        assertEquals("BOLT DELAY(20) RELEASE ACCELERATE", program.source());
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT DELAY"));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT DELAY(0)"));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT DELAY(201)"));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT RELEASE"));
+    }
+
+    @Test
+    void motionWordsRequireACompatibleManifestation() throws Exception {
+        for (String source : List.of(
+            "BOLT ACCELERATE IMPACT IGNITE",
+            "BOLT GRAVITY",
+            "BOLT ANTI_GRAVITY",
+            "ORB GRAVITY LINK",
+            "ORB ANTI_GRAVITY LINK"
+        )) {
+            assertTrue(SpellParser.parse(source).nodes().size() > 0, source);
+        }
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("ACCELERATE"));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("GRAVITY"));
+    }
+
+    @Test
+    void orbIsASecondManifestationAndRejectsBoltOnlyImpact() throws Exception {
+        SpellProgram program = SpellParser.parse("ORB SPLIT LINK");
+
+        assertEquals(SpellWordId.ORB, program.node(0).word());
+        assertEquals(2, SpellProgramAnalysis.estimatedManifestations(program));
+        assertThrows(SpellValidationException.class, () -> SpellParser.parse("ORB IMPACT IGNITE"));
+    }
+
+    @Test
+    void combinedTargetingMotionAndContinuationStressProgramCompiles() throws Exception {
+        SpellProgram program = SpellParser.parse(
+            "ENTITY HOSTILE NEAREST BOLT SPLIT SPLIT HOME ACCELERATE LINK IMPACT EXPLOSION AMPLIFY");
+
+        assertEquals(4, SpellProgramAnalysis.estimatedManifestations(program));
+        assertEquals(2.0D, program.node(10).powerMultiplier());
+    }
+
+    @Test
+    void touchAndSelfCanProvideConditionContext() throws Exception {
+        assertTrue(SpellParser.parse("TOUCH IF BREAK").nodes().size() > 0);
+        assertTrue(SpellParser.parse("SELF IF BOLT").nodes().size() > 0);
     }
 
     @Test

@@ -6,5 +6,12 @@ public record SpellWordPresentation(
     String displayName,
     String glyph,
     String category,
-    String description
-) {}
+    String description,
+    ParameterSpec parameter
+) {
+    public boolean hasPlayerParameter() {
+        return parameter != null;
+    }
+
+    public record ParameterSpec(int minimum, int maximum, int defaultValue, int step, String unit) {}
+}

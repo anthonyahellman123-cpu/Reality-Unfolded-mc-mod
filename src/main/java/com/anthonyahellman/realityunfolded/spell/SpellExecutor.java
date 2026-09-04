@@ -47,7 +47,7 @@ public final class SpellExecutor {
             return;
         }
 
-        List<Integer> next = node.next();
+        List<Integer> next = outcome.overridesContinuation() ? outcome.continuation() : node.next();
         if (next.isEmpty()) {
             SpellDebug.termination(outcome.context(), "branch complete");
             return;

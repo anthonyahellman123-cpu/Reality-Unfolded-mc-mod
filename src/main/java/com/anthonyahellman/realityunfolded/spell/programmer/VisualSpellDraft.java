@@ -5,6 +5,8 @@ import com.anthonyahellman.realityunfolded.spell.SpellParser;
 import com.anthonyahellman.realityunfolded.spell.SpellProgram;
 import com.anthonyahellman.realityunfolded.spell.SpellValidationException;
 import com.anthonyahellman.realityunfolded.spell.SpellWordId;
+import com.anthonyahellman.realityunfolded.spell.SpellWordPresentation;
+import com.anthonyahellman.realityunfolded.spell.WordRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +34,11 @@ public final class VisualSpellDraft {
     }
 
     public void append(SpellWordId word) {
-        if (nodes.size() < MAX_GLYPHS) nodes.add(new GlyphNode(word, word == SpellWordId.SPLIT ? 2 : 0));
+        if (nodes.size() >= MAX_GLYPHS) return;
+        SpellWordPresentation presentation = WordRegistry.presentation(word);
+        int argument = presentation.parameter() == null ? (word == SpellWordId.SPLIT ? 2 : 0)
+            : presentation.parameter().defaultValue();
+        nodes.add(new GlyphNode(word, argument));
     }
 
     public void remove(int index) {
@@ -47,6 +53,16 @@ public final class VisualSpellDraft {
         return target;
     }
 
+    public void adjustParameter(int index, int direction) {
+        if (index < 0 || index >= nodes.size()) return;
+        GlyphNode node = nodes.get(index);
+        SpellWordPresentation.ParameterSpec spec = WordRegistry.presentation(node.word()).parameter();
+        if (spec == null) return;
+        int next = Math.max(spec.minimum(), Math.min(spec.maximum(),
+            node.integerArgument() + Integer.compare(direction, 0) * spec.step()));
+        nodes.set(index, new GlyphNode(node.word(), next));
+    }
+
     public String source() {
         return nodes.stream().map(GlyphNode::sourceToken)
             .reduce((left, right) -> left + " " + right).orElse("");
@@ -54,8 +70,8 @@ public final class VisualSpellDraft {
 
     public record GlyphNode(SpellWordId word, int integerArgument) {
         public String sourceToken() {
-            return word == SpellWordId.SPLIT && integerArgument != 2
-                ? "SPLIT(" + integerArgument + ")" : word.name();
+            if (word == SpellWordId.SPLIT && integerArgument == 2) return "SPLIT";
+            return integerArgument > 0 ? word.name() + "(" + integerArgument + ")" : word.name();
         }
     }
 }

@@ -10,6 +10,7 @@ public final class SpellParser {
     private static final Pattern ARGUMENT = Pattern.compile("([A-Z_]+)\\(([-+]?\\d+)\\)");
     private static final int MAX_SPLIT_CHILDREN = 16;
     private static final int DEFAULT_SPLIT_CHILDREN = 2;
+    private static final int MAX_DELAY_TICKS = 200;
 
     private SpellParser() {}
 
@@ -33,12 +34,18 @@ public final class SpellParser {
                 throw new SpellValidationException("Unknown word: " + raw);
             }
 
-            if (matcher.matches() && word != SpellWordId.SPLIT) {
+            if (matcher.matches() && word != SpellWordId.SPLIT && word != SpellWordId.DELAY) {
                 throw new SpellValidationException(word + " does not accept an integer argument");
             }
             if (!matcher.matches() && word == SpellWordId.SPLIT) argument = DEFAULT_SPLIT_CHILDREN;
+            if (!matcher.matches() && word == SpellWordId.DELAY) {
+                throw new SpellValidationException("DELAY requires ticks, for example DELAY(20)");
+            }
             if (word == SpellWordId.SPLIT && (argument < 2 || argument > MAX_SPLIT_CHILDREN)) {
                 throw new SpellValidationException("SPLIT child count must be from 2 to " + MAX_SPLIT_CHILDREN);
+            }
+            if (word == SpellWordId.DELAY && (argument < 1 || argument > MAX_DELAY_TICKS)) {
+                throw new SpellValidationException("DELAY must be from 1 to " + MAX_DELAY_TICKS + " ticks");
             }
 
             MutableNode node = new MutableNode(nodes.size(), word, argument);
@@ -56,7 +63,13 @@ public final class SpellParser {
         List<SpellNode> immutable = new ArrayList<>();
         for (int i = 0; i < nodes.size(); i++) {
             MutableNode node = nodes.get(i);
-            List<Integer> next = i + 1 < nodes.size() ? List.of(i + 1) : List.of();
+            List<Integer> next;
+            if (node.word == SpellWordId.IF) {
+                next = List.of(i + 1 < nodes.size() ? i + 1 : SpellProgram.TERMINAL,
+                    SpellProgram.TERMINAL);
+            } else {
+                next = i + 1 < nodes.size() ? List.of(i + 1) : List.of();
+            }
             immutable.add(new SpellNode(node.id, node.word, node.argument, node.powerMultiplier, next));
         }
         SpellProgram program = new SpellProgram(0, immutable, source.trim());
@@ -70,19 +83,65 @@ public final class SpellParser {
     }
 
     private static void validateRuntimeRequirements(SpellProgram program) throws SpellValidationException {
-        boolean hasManifestation = false;
+        ManifestationKind manifestation = ManifestationKind.NONE;
+        EntityQuery.Kind queryKind = null;
+        boolean sensing = false;
+        boolean hasCondition = false;
+        boolean hasDelayedBoundary = false;
         for (SpellNode node : program.nodes()) {
-            if (node.word() == SpellWordId.BOLT) hasManifestation = true;
-            if (!hasManifestation && requiresManifestation(node.word())) {
-                throw new SpellValidationException(node.word() + " requires a preceding BOLT manifestation");
+            SpellWordId word = node.word();
+            if (word == SpellWordId.SENSE) {
+                sensing = true;
+                hasCondition = false;
+            } else if (word == SpellWordId.SELF || word == SpellWordId.TOUCH) {
+                hasCondition = true;
+            } else if (word == SpellWordId.ENTITY) {
+                queryKind = EntityQuery.Kind.ENTITY;
+                hasCondition = sensing;
+            } else if (word == SpellWordId.PLAYER) {
+                queryKind = EntityQuery.Kind.PLAYER;
+                hasCondition = sensing;
+            } else if (word == SpellWordId.HOSTILE) {
+                if (queryKind != EntityQuery.Kind.ENTITY) {
+                    throw new SpellValidationException("HOSTILE requires ENTITY context");
+                }
+                hasCondition = hasCondition || sensing;
+            } else if (word == SpellWordId.NEAREST) {
+                if (queryKind == null) throw new SpellValidationException("NEAREST requires ENTITY or PLAYER context");
+                hasCondition = true;
+            } else if (word == SpellWordId.NOT) {
+                if (!hasCondition) throw new SpellValidationException("NOT requires a condition result");
+            } else if (word == SpellWordId.IF) {
+                if (!hasCondition) throw new SpellValidationException("IF requires a condition");
+            } else if (word == SpellWordId.BOLT) {
+                manifestation = ManifestationKind.BOLT;
+            } else if (word == SpellWordId.ORB) {
+                manifestation = ManifestationKind.ORB;
+            } else if (word == SpellWordId.IMPACT) {
+                if (manifestation == ManifestationKind.NONE) {
+                    throw new SpellValidationException("IMPACT requires a compatible manifestation");
+                }
+                if (manifestation == ManifestationKind.ORB) {
+                    throw new SpellValidationException("IMPACT is not compatible with persistent ORB");
+                }
+            } else if (requiresManifestation(word) && manifestation == ManifestationKind.NONE) {
+                throw new SpellValidationException(word + " requires a compatible manifestation");
+            }
+            if (word == SpellWordId.DELAY) hasDelayedBoundary = true;
+            if (word == SpellWordId.RELEASE) {
+                if (!hasDelayedBoundary) throw new SpellValidationException("RELEASE requires a preceding DELAY");
+                hasDelayedBoundary = false;
             }
         }
     }
 
     private static boolean requiresManifestation(SpellWordId word) {
-        return word == SpellWordId.HOME || word == SpellWordId.IMPACT
-            || word == SpellWordId.SPLIT || word == SpellWordId.LINK;
+        return word == SpellWordId.HOME || word == SpellWordId.SPLIT || word == SpellWordId.LINK
+            || word == SpellWordId.ACCELERATE || word == SpellWordId.GRAVITY
+            || word == SpellWordId.ANTI_GRAVITY;
     }
+
+    private enum ManifestationKind { NONE, BOLT, ORB }
 
     private static int parseInteger(String value, String token) throws SpellValidationException {
         try {

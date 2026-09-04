@@ -1,12 +1,22 @@
-# Reality Unfolded — Stage 2 Spellcraft + Void Caster
+# Reality Unfolded — Stage 2 Smart Spell Foundation
 
 Forge 1.20.1 proof of concept for an order-sensitive magical programming language.
 This build implements independent words and a generic resumable runtime. It does
 not contain hardcoded spell classes.
 
-## POC vocabulary
+## Player-facing vocabulary
 
-`BOLT`, `BREAK`, `IGNITE`, `IMPACT`, `EXPLOSION`, `AMPLIFY`, `SPLIT`, `LINK`, `HOME`
+- Manifestations: `BOLT`, `ORB`
+- Context: `SELF`, `ENTITY`, `PLAYER`, `NEAREST`, `HOSTILE`, `TOUCH`
+- Logic: `SENSE`, `IF`, `NOT`
+- Flow: `IMPACT`, `SPLIT`, `LINK`, `DELAY`, `RELEASE`
+- Motion: `HOME`, `ACCELERATE`, `GRAVITY`, `ANTI_GRAVITY`
+- Effects/world: `BREAK`, `IGNITE`, `EXPLOSION`, `AMPLIFY`
+
+All 24 words are registered through the same runtime and presentation registry.
+The glyph browser pages through that registry, so none of these words require raw
+source typing. `DELAY` exposes a bounded tick parameter in the current visual
+editor.
 
 ## Player workflow
 
@@ -61,26 +71,46 @@ Both spaces and arrows are accepted as separators:
 `AMPLIFY` is a postfix modifier. For example, `EXPLOSION AMPLIFY` doubles the
 explosion's damage power while its effect radius remains fixed.
 
-## Runtime architecture
+## Smart-spell runtime
 
-- `SpellProgram` is a serializable directed node graph. The temporary command
-  parser emits a linear path, but the representation and executor support
-  multiple child edges.
+- `SpellProgram` is a serializable directed node graph. `IF` now compiles a
+  genuine true edge and false terminal edge. The current visual projection marks
+  this as `T↓ / F END`; an explicit ELSE editor is intentionally deferred.
 - Each word is independently registered through `WordRegistry` and receives a
-  generic `SpellExecutionContext`.
+  branch-local `SpellExecutionContext`. It carries the caster, target/query,
+  condition, current manifestation, continuation boundary, and cast lineage;
+  active state is never stored in global mutable "current spell" fields.
+- `ENTITY` and `PLAYER` establish candidate queries. `HOSTILE` refines the query
+  before `NEAREST` resolves it. `PLAYER` excludes the caster; `SELF` names the
+  caster explicitly.
+- `SENSE` asks whether the following context query is currently true. `NOT`
+  negates that result and `IF` selects a graph edge server-side.
+- `TOUCH` uses the player's Forge block/entity reach attributes. It cannot reuse
+  the cast service's longer debug aim trace, so unreachable targets resolve false.
 - `IMPACT` suspends the current branch and stores downstream node IDs on the
   manifestation. Collision resumes those nodes in an impact context.
+- `DELAY(n)` stores a bounded server-owned continuation and resumes it once after
+  `n` ticks. `RELEASE` currently consumes that resumed delay boundary; it does not
+  imply the future CHARGE system.
 - `SPLIT` replaces every compatible manifestation with two server-side child
   manifestations. Repeating the glyph doubles the set: 1→2→4. Legacy
   developer input `SPLIT(n)` remains accepted, and validation caps a program at
   an estimated 64 manifestations.
-- `HOME` installs continuous server-side steering on the current manifestation.
+- `HOME` consumes an explicitly resolved entity target, or resolves the nearest
+  candidate from an existing filtered query, and installs continuous server-side
+  steering. Only truly bare legacy `HOME` retains the Stage-2 nearest-living-target
+  fallback for compatibility; guidance never guarantees impact.
+- `ACCELERATE` composes multiplicatively up to a runtime speed cap. `GRAVITY` and
+  `ANTI_GRAVITY` apply continuous downward/upward influence.
+- `ORB` is a distinct persistent, non-impacting manifestation entity. It supports
+  generic `SPLIT`, `LINK`, motion, and gravity operations without conversion to a
+  bolt.
 - `LINK` registers manifestations in a server runtime relationship keyed by cast
   and graph node. `/ru links` exposes live relationship/member counts.
 - Manifestations serialize their program, cast lineage, power, homing state, and
   impact continuations to NBT.
 
-## POC test commands
+## Smart-spell examples
 
 ```text
 /ru cast BOLT
@@ -92,13 +122,31 @@ explosion's damage power while its effect radius remains fixed.
 /ru cast BOLT SPLIT IMPACT IGNITE
 /ru cast BOLT SPLIT SPLIT HOME IMPACT IGNITE
 /ru cast BOLT SPLIT LINK IMPACT IGNITE
+/ru cast ENTITY HOSTILE NEAREST BOLT HOME IMPACT IGNITE
+/ru cast SENSE ENTITY HOSTILE IF BOLT HOME IMPACT IGNITE
+/ru cast BOLT DELAY(20) RELEASE ACCELERATE IMPACT IGNITE
+/ru cast BOLT ACCELERATE GRAVITY IMPACT IGNITE
+/ru cast ORB SPLIT LINK
+/ru cast ORB ANTI_GRAVITY LINK
 ```
 
 The log prefix `[RU SPELL]` exposes cast IDs, executed nodes, context, child
 creation, impacts, link lifecycle, validation failures, and termination.
 
+## POC runtime guardrails
+
+- Query radius: 32 blocks; at most 64 candidate entities are inspected.
+- Estimated manifestations: 64 per validated program; legacy `SPLIT(n)` accepts
+  2–16 children while the glyph remains parameterless ×2.
+- Delay: 1–200 ticks, at most 32 queued continuations per cast and 256 per level.
+- Executor: 256 nodes per resume; visual draft: 32 glyphs.
+- Bolt lifetime: 120 ticks; persistent ORB lifetime: 600 ticks; manifestation
+  speed cap: 4 blocks/tick.
+
+These are multiplayer POC engineering limits, not lore or permanent balance.
+
 ## Scope boundary
 
-No progression, Domains, Void Embalming, Soul Curses, mana system, final
-Grimoire artwork, Workbench UI, reagents, targeting language, conditions,
-functions, or final VFX are part of this proof of concept.
+No progression, Domains, Void Embalming, Soul Curses, mana/AP system, SCAN,
+CHARGE, final Spellcraft redesign, functions/macros, or final VFX are part of
+this proof of concept.

@@ -10,7 +10,7 @@ public final class ImpactWord implements SpellWord {
     @Override
     public WordOutcome execute(SpellProgram program, SpellNode node, SpellExecutionContext context) {
         if (context.manifestation() == null) return WordOutcome.terminate(context);
-        context.manifestation().armImpact(node.next());
-        return WordOutcome.suspend(context);
+        return context.manifestation().armImpact(node.next())
+            ? WordOutcome.suspend(context) : WordOutcome.terminate(context);
     }
 }
