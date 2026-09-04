@@ -14,7 +14,17 @@ class GrimoireSpellServiceTest {
             "BOLT -> HOME -> IMPACT -> IGNITE");
 
         assertTrue(result.success());
-        assertTrue(result.message().contains("4 spell words"));
+        assertTrue(result.message().contains("4 glyphs"));
+        assertEquals(1, result.manifestations());
+    }
+
+    @Test
+    void repeatedSplitEstimateComesFromCanonicalValidation() {
+        GrimoireSpellService.Result result = GrimoireSpellService.validate(
+            "BOLT SPLIT SPLIT HOME IMPACT IGNITE");
+
+        assertTrue(result.success());
+        assertEquals(4, result.manifestations());
     }
 
     @Test

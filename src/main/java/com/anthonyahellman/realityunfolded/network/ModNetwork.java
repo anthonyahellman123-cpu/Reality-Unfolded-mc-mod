@@ -2,6 +2,7 @@ package com.anthonyahellman.realityunfolded.network;
 
 import com.anthonyahellman.realityunfolded.RealityUnfolded;
 import com.anthonyahellman.realityunfolded.grimoire.GrimoireData;
+import com.anthonyahellman.realityunfolded.grimoire.GrimoireSpellService;
 import com.anthonyahellman.realityunfolded.item.ModItems;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,7 +12,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class ModNetwork {
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
         new ResourceLocation(RealityUnfolded.MOD_ID, "main"),
         () -> PROTOCOL,
@@ -47,14 +48,17 @@ public final class ModNetwork {
 
     public static void openGrimoire(ServerPlayer player, String message, boolean valid) {
         GrimoireData.Snapshot snapshot = GrimoireData.get(player).snapshot();
+        GrimoireSpellService.Result selected = GrimoireSpellService.validate(
+            snapshot.slots().get(snapshot.selectedSlot()).source());
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-            GrimoireStatePacket.from(snapshot, message, valid, true));
+            GrimoireStatePacket.from(snapshot, message, valid, selected.manifestations(), true));
     }
 
-    public static void updateGrimoire(ServerPlayer player, String message, boolean valid) {
+    public static void updateGrimoire(ServerPlayer player, String message, boolean valid,
+                                      int manifestations) {
         GrimoireData.Snapshot snapshot = GrimoireData.get(player).snapshot();
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-            GrimoireStatePacket.from(snapshot, message, valid, false));
+            GrimoireStatePacket.from(snapshot, message, valid, manifestations, false));
     }
 
     public static void saveSlot(int slot, String name, String source, boolean select) {
@@ -71,14 +75,9 @@ public final class ModNetwork {
             GrimoireActionPacket.Action.SELECT_SAVED, slot, ""));
     }
 
-    public static void castSelected() {
-        CHANNEL.sendToServer(new GrimoireActionPacket(
-            GrimoireActionPacket.Action.CAST_SELECTED, 0, ""));
-    }
-
-    public static void feedback(ServerPlayer player, String message, boolean valid) {
+    public static void feedback(ServerPlayer player, String message, boolean valid, int manifestations) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-            new GrimoireFeedbackPacket(message, valid));
+            new GrimoireFeedbackPacket(message, valid, manifestations));
     }
 
     public static boolean isHoldingGrimoire(ServerPlayer player) {

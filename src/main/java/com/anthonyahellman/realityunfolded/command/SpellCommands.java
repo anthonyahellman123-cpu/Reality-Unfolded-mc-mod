@@ -93,7 +93,8 @@ public final class SpellCommands {
         source.sendSuccess(() -> Component.literal("[RU] /ru cast BOLT IMPACT EXPLOSION AMPLIFY"), false);
         source.sendSuccess(() -> Component.literal("[RU] /ru cast BREAK"), false);
         source.sendSuccess(() -> Component.literal("[RU] /ru cast BOLT HOME IMPACT IGNITE"), false);
-        source.sendSuccess(() -> Component.literal("[RU] /ru cast BOLT SPLIT(3) LINK IMPACT IGNITE"), false);
+        source.sendSuccess(() -> Component.literal("[RU] /ru cast BOLT SPLIT SPLIT HOME IMPACT IGNITE"), false);
+        source.sendSuccess(() -> Component.literal("[RU] Legacy developer input SPLIT(n) remains accepted."), false);
         return 1;
     }
 }

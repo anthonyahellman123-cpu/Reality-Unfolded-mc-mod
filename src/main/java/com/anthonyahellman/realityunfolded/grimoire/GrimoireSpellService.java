@@ -5,6 +5,7 @@ import com.anthonyahellman.realityunfolded.spell.SpellCastService;
 import com.anthonyahellman.realityunfolded.spell.SpellDebug;
 import com.anthonyahellman.realityunfolded.spell.SpellParser;
 import com.anthonyahellman.realityunfolded.spell.SpellProgram;
+import com.anthonyahellman.realityunfolded.spell.SpellProgramAnalysis;
 import com.anthonyahellman.realityunfolded.spell.SpellValidationException;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -16,7 +17,8 @@ public final class GrimoireSpellService {
         String safeSource = source == null ? "" : source;
         try {
             SpellProgram program = SpellParser.parse(safeSource);
-            return Result.success("VALID — " + program.nodes().size() + " spell words compiled.");
+            int manifestations = SpellProgramAnalysis.estimatedManifestations(program);
+            return Result.success("VALID — " + program.nodes().size() + " glyphs compiled.", manifestations);
         } catch (SpellValidationException exception) {
             SpellDebug.validation(safeSource, exception.getMessage());
             return Result.failure("INVALID: " + exception.getMessage());
@@ -33,7 +35,8 @@ public final class GrimoireSpellService {
             SpellProgram program = SpellParser.parse(safeSource);
             data.saveSlot(slot, name, program.source());
             if (select) data.setSelectedSlot(slot);
-            return Result.success(select ? "VALID — saved and selected." : "VALID — spell saved.");
+            return Result.success(select ? "VALID — saved and selected." : "VALID — spell saved.",
+                SpellProgramAnalysis.estimatedManifestations(program));
         } catch (SpellValidationException exception) {
             SpellDebug.validation(safeSource, exception.getMessage());
             return Result.failure("INVALID: " + exception.getMessage());
@@ -56,7 +59,7 @@ public final class GrimoireSpellService {
         }
 
         data.setSelectedSlot(slot);
-        return Result.success("Selected " + saved.name() + " for casting.");
+        return Result.success("Selected " + saved.name() + " for casting.", validation.manifestations());
     }
 
     /** Uses the same SpellCastService entry point as /ru cast. */
@@ -79,13 +82,17 @@ public final class GrimoireSpellService {
         }
     }
 
-    public record Result(boolean success, String message) {
+    public record Result(boolean success, String message, int manifestations) {
         public static Result success(String message) {
-            return new Result(true, message);
+            return new Result(true, message, -1);
+        }
+
+        public static Result success(String message, int manifestations) {
+            return new Result(true, message, manifestations);
         }
 
         public static Result failure(String message) {
-            return new Result(false, message);
+            return new Result(false, message, -1);
         }
     }
 }

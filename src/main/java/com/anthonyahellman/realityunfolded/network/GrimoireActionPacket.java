@@ -13,7 +13,6 @@ public record GrimoireActionPacket(Action action, int slot, String source) {
     public enum Action {
         VALIDATE_DRAFT,
         SELECT_SAVED,
-        CAST_SELECTED,
         UNKNOWN;
 
         private static Action byId(int id) {
@@ -42,7 +41,7 @@ public record GrimoireActionPacket(Action action, int slot, String source) {
 
     private static void perform(ServerPlayer player, GrimoireActionPacket packet) {
         if (!ModNetwork.isHoldingGrimoire(player)) {
-            ModNetwork.feedback(player, "INVALID: Hold the Grimoire while using Spellcraft.", false);
+            ModNetwork.feedback(player, "INVALID: Hold the Grimoire while using Spellcraft.", false, -1);
             return;
         }
 
@@ -50,17 +49,13 @@ public record GrimoireActionPacket(Action action, int slot, String source) {
         switch (packet.action) {
             case VALIDATE_DRAFT -> {
                 result = GrimoireSpellService.validate(packet.source);
-                ModNetwork.feedback(player, result.message(), result.success());
+                ModNetwork.feedback(player, result.message(), result.success(), result.manifestations());
             }
             case SELECT_SAVED -> {
                 result = GrimoireSpellService.select(GrimoireData.get(player), packet.slot);
-                ModNetwork.updateGrimoire(player, result.message(), result.success());
+                ModNetwork.updateGrimoire(player, result.message(), result.success(), result.manifestations());
             }
-            case CAST_SELECTED -> {
-                result = GrimoireSpellService.castSelected(player);
-                ModNetwork.feedback(player, result.message(), result.success());
-            }
-            default -> ModNetwork.feedback(player, "INVALID: Unknown Grimoire action.", false);
+            default -> ModNetwork.feedback(player, "INVALID: Unknown Grimoire action.", false, -1);
         }
     }
 }

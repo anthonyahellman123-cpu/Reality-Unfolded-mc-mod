@@ -12,6 +12,9 @@ public final class CreativeTabEvents {
 
     @SubscribeEvent
     public static void addItems(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) event.accept(ModItems.GRIMOIRE);
+        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+            event.accept(ModItems.GRIMOIRE);
+            event.accept(ModItems.VOID_CASTER_GAUNTLET);
+        }
     }
 }
