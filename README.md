@@ -96,9 +96,10 @@ explosion's damage power while its effect radius remains fixed.
   manifestations. Repeating the glyph doubles the set: 1→2→4. Legacy
   developer input `SPLIT(n)` remains accepted, and validation caps a program at
   an estimated 64 manifestations.
-- `HOME` consumes an explicitly resolved entity target when present and installs
-  continuous server-side steering. Bare legacy `HOME` retains the Stage-2 nearest
-  living target fallback for compatibility; guidance never guarantees impact.
+- `HOME` consumes an explicitly resolved entity target, or resolves the nearest
+  candidate from an existing filtered query, and installs continuous server-side
+  steering. Only truly bare legacy `HOME` retains the Stage-2 nearest-living-target
+  fallback for compatibility; guidance never guarantees impact.
 - `ACCELERATE` composes multiplicatively up to a runtime speed cap. `GRAVITY` and
   `ANTI_GRAVITY` apply continuous downward/upward influence.
 - `ORB` is a distinct persistent, non-impacting manifestation entity. It supports
