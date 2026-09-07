@@ -51,10 +51,7 @@ public final class SpellParser {
             MutableNode node = new MutableNode(nodes.size(), word, argument);
             nodes.add(node);
             if (word == SpellWordId.AMPLIFY) {
-                if (lastPowerTarget == null) {
-                    throw new SpellValidationException("AMPLIFY must follow a power-bearing operation");
-                }
-                lastPowerTarget.powerMultiplier *= 2.0D;
+                if (lastPowerTarget != null) lastPowerTarget.powerMultiplier *= 2.0D;
             } else {
                 lastPowerTarget = word.acceptsPower() ? node : null;
             }
@@ -73,7 +70,6 @@ public final class SpellParser {
             immutable.add(new SpellNode(node.id, node.word, node.argument, node.powerMultiplier, next));
         }
         SpellProgram program = new SpellProgram(0, immutable, source.trim());
-        validateRuntimeRequirements(program);
         int manifestations = SpellProgramAnalysis.estimatedManifestations(program);
         if (manifestations > SpellProgramAnalysis.MAX_MANIFESTATIONS) {
             throw new SpellValidationException("Spell may create more than "
@@ -81,67 +77,6 @@ public final class SpellParser {
         }
         return new SpellProgram(0, immutable, SpellProgramAnalysis.canonicalSource(program));
     }
-
-    private static void validateRuntimeRequirements(SpellProgram program) throws SpellValidationException {
-        ManifestationKind manifestation = ManifestationKind.NONE;
-        EntityQuery.Kind queryKind = null;
-        boolean sensing = false;
-        boolean hasCondition = false;
-        boolean hasDelayedBoundary = false;
-        for (SpellNode node : program.nodes()) {
-            SpellWordId word = node.word();
-            if (word == SpellWordId.SENSE) {
-                sensing = true;
-                hasCondition = false;
-            } else if (word == SpellWordId.SELF || word == SpellWordId.TOUCH) {
-                hasCondition = true;
-            } else if (word == SpellWordId.ENTITY) {
-                queryKind = EntityQuery.Kind.ENTITY;
-                hasCondition = sensing;
-            } else if (word == SpellWordId.PLAYER) {
-                queryKind = EntityQuery.Kind.PLAYER;
-                hasCondition = sensing;
-            } else if (word == SpellWordId.HOSTILE) {
-                if (queryKind != EntityQuery.Kind.ENTITY) {
-                    throw new SpellValidationException("HOSTILE requires ENTITY context");
-                }
-                hasCondition = hasCondition || sensing;
-            } else if (word == SpellWordId.NEAREST) {
-                if (queryKind == null) throw new SpellValidationException("NEAREST requires ENTITY or PLAYER context");
-                hasCondition = true;
-            } else if (word == SpellWordId.NOT) {
-                if (!hasCondition) throw new SpellValidationException("NOT requires a condition result");
-            } else if (word == SpellWordId.IF) {
-                if (!hasCondition) throw new SpellValidationException("IF requires a condition");
-            } else if (word == SpellWordId.BOLT) {
-                manifestation = ManifestationKind.BOLT;
-            } else if (word == SpellWordId.ORB) {
-                manifestation = ManifestationKind.ORB;
-            } else if (word == SpellWordId.IMPACT) {
-                if (manifestation == ManifestationKind.NONE) {
-                    throw new SpellValidationException("IMPACT requires a compatible manifestation");
-                }
-                if (manifestation == ManifestationKind.ORB) {
-                    throw new SpellValidationException("IMPACT is not compatible with persistent ORB");
-                }
-            } else if (requiresManifestation(word) && manifestation == ManifestationKind.NONE) {
-                throw new SpellValidationException(word + " requires a compatible manifestation");
-            }
-            if (word == SpellWordId.DELAY) hasDelayedBoundary = true;
-            if (word == SpellWordId.RELEASE) {
-                if (!hasDelayedBoundary) throw new SpellValidationException("RELEASE requires a preceding DELAY");
-                hasDelayedBoundary = false;
-            }
-        }
-    }
-
-    private static boolean requiresManifestation(SpellWordId word) {
-        return word == SpellWordId.HOME || word == SpellWordId.SPLIT || word == SpellWordId.LINK
-            || word == SpellWordId.ACCELERATE || word == SpellWordId.GRAVITY
-            || word == SpellWordId.ANTI_GRAVITY;
-    }
-
-    private enum ManifestationKind { NONE, BOLT, ORB }
 
     private static int parseInteger(String value, String token) throws SpellValidationException {
         try {

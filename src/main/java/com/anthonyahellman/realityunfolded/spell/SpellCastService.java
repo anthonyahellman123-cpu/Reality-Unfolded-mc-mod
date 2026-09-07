@@ -13,7 +13,10 @@ public final class SpellCastService {
     private SpellCastService() {}
 
     public static CastResult cast(ServerPlayer player, String source) throws SpellValidationException {
-        SpellProgram program = SpellParser.parse(source);
+        return cast(player, SpellParser.parse(source));
+    }
+
+    public static CastResult cast(ServerPlayer player, SpellProgram program) {
         UUID castId = UUID.randomUUID();
         HitResult lookedAt = player.pick(64.0D, 0.0F, false);
         BlockHitResult blockHit = lookedAt instanceof BlockHitResult hit ? hit : null;

@@ -12,7 +12,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class ModNetwork {
-    private static final String PROTOCOL = "4";
+    private static final String PROTOCOL = "5";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
         new ResourceLocation(RealityUnfolded.MOD_ID, "main"),
         () -> PROTOCOL,
@@ -48,10 +48,8 @@ public final class ModNetwork {
 
     public static void openGrimoire(ServerPlayer player, String message, boolean valid) {
         GrimoireData.Snapshot snapshot = GrimoireData.get(player).snapshot();
-        GrimoireSpellService.Result selected = GrimoireSpellService.validate(
-            snapshot.slots().get(snapshot.selectedSlot()).source());
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-            GrimoireStatePacket.from(snapshot, message, valid, selected.manifestations(), true));
+            GrimoireStatePacket.from(snapshot, message, valid, -1, true));
     }
 
     public static void updateGrimoire(ServerPlayer player, String message, boolean valid,
@@ -61,8 +59,8 @@ public final class ModNetwork {
             GrimoireStatePacket.from(snapshot, message, valid, manifestations, false));
     }
 
-    public static void saveSlot(int slot, String name, String source, boolean select) {
-        CHANNEL.sendToServer(new SaveGrimoireSlotPacket(slot, name, source, select));
+    public static void saveGraph(int slot, String name, String graph, boolean select) {
+        CHANNEL.sendToServer(new SaveGrimoireSlotPacket(slot, name, graph, select));
     }
 
     public static void validateDraft(String source) {

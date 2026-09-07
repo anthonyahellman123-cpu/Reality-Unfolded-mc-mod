@@ -10,6 +10,7 @@ public final class GrimoireData {
     public static final int SLOT_COUNT = 8;
     public static final int MAX_NAME_LENGTH = 48;
     public static final int MAX_SOURCE_LENGTH = 512;
+    public static final int MAX_GRAPH_LENGTH = 16_384;
     private static final String ROOT_KEY = "reality_unfolded_grimoire";
     private static final String INITIALIZED_KEY = "initialized";
     private static final String SELECTED_KEY = "selected_slot";
@@ -35,6 +36,7 @@ public final class GrimoireData {
             for (int i = 0; i < SLOT_COUNT; i++) {
                 tag.putString(nameKey(i), "Spell " + (i + 1));
                 tag.putString(sourceKey(i), "");
+                tag.putString(graphKey(i), "");
             }
             tag.putBoolean(INITIALIZED_KEY, true);
         }
@@ -51,13 +53,19 @@ public final class GrimoireData {
 
     public SpellSlot slot(int slot) {
         int safeSlot = clampSlot(slot);
-        return new SpellSlot(tag.getString(nameKey(safeSlot)), tag.getString(sourceKey(safeSlot)));
+        return new SpellSlot(tag.getString(nameKey(safeSlot)), tag.getString(sourceKey(safeSlot)),
+            tag.getString(graphKey(safeSlot)));
     }
 
     public void saveSlot(int slot, String name, String source) {
+        saveSlot(slot, name, source, "");
+    }
+
+    public void saveSlot(int slot, String name, String source, String graph) {
         int safeSlot = clampSlot(slot);
         tag.putString(nameKey(safeSlot), sanitize(name, MAX_NAME_LENGTH, "Spell " + (safeSlot + 1)));
         tag.putString(sourceKey(safeSlot), sanitize(source, MAX_SOURCE_LENGTH, ""));
+        tag.putString(graphKey(safeSlot), sanitize(graph, MAX_GRAPH_LENGTH, ""));
     }
 
     public Snapshot snapshot() {
@@ -88,7 +96,13 @@ public final class GrimoireData {
         return "slot_" + slot + "_source";
     }
 
-    public record SpellSlot(String name, String source) {}
+    private static String graphKey(int slot) {
+        return "slot_" + slot + "_graph";
+    }
+
+    public record SpellSlot(String name, String source, String graph) {
+        public SpellSlot(String name, String source) { this(name, source, ""); }
+    }
 
     public record Snapshot(int selectedSlot, List<SpellSlot> slots) {
         public Snapshot {

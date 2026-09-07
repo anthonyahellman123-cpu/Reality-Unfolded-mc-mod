@@ -132,16 +132,16 @@ class GrimoireSpellServiceTest {
     }
 
     @Test
-    void invalidContextProgramCannotReplaceCanonicalStorage() {
+    void semanticallyUnresolvedProgramCanBeSavedForExperimentation() {
         GrimoireData data = new GrimoireData(new CompoundTag());
         assertTrue(GrimoireSpellService.save(data, 1, "Safe", "BOLT", true).success());
 
-        GrimoireSpellService.Result rejected = GrimoireSpellService.save(
+        GrimoireSpellService.Result saved = GrimoireSpellService.save(
             data, 1, "Invalid", "HOSTILE NEAREST BOLT", true);
 
-        assertFalse(rejected.success());
-        assertEquals("Safe", data.slot(1).name());
-        assertEquals("BOLT", data.slot(1).source());
+        assertTrue(saved.success());
+        assertEquals("Invalid", data.slot(1).name());
+        assertEquals("HOSTILE NEAREST BOLT", data.slot(1).source());
         assertEquals(1, data.selectedSlot());
     }
 }

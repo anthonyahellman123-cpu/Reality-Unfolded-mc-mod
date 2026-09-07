@@ -29,6 +29,7 @@ public record GrimoireStatePacket(int selectedSlot, List<GrimoireData.SpellSlot>
         for (GrimoireData.SpellSlot slot : packet.slots) {
             buffer.writeUtf(slot.name(), GrimoireData.MAX_NAME_LENGTH);
             buffer.writeUtf(slot.source(), GrimoireData.MAX_SOURCE_LENGTH);
+            buffer.writeUtf(slot.graph(), GrimoireData.MAX_GRAPH_LENGTH);
         }
         buffer.writeUtf(packet.message, 256);
         buffer.writeBoolean(packet.valid);
@@ -43,7 +44,8 @@ public record GrimoireStatePacket(int selectedSlot, List<GrimoireData.SpellSlot>
         for (int i = 0; i < count; i++) {
             slots.add(new GrimoireData.SpellSlot(
                 buffer.readUtf(GrimoireData.MAX_NAME_LENGTH),
-                buffer.readUtf(GrimoireData.MAX_SOURCE_LENGTH)));
+                buffer.readUtf(GrimoireData.MAX_SOURCE_LENGTH),
+                buffer.readUtf(GrimoireData.MAX_GRAPH_LENGTH)));
         }
         return new GrimoireStatePacket(selected, slots, buffer.readUtf(256),
             buffer.readBoolean(), buffer.readVarInt() - 1, buffer.readBoolean());

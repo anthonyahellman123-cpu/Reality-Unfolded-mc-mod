@@ -8,18 +8,18 @@ import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
-public record SaveGrimoireSlotPacket(int slot, String name, String source, boolean select) {
+public record SaveGrimoireSlotPacket(int slot, String name, String graph, boolean select) {
     public static void encode(SaveGrimoireSlotPacket packet, FriendlyByteBuf buffer) {
         buffer.writeVarInt(packet.slot);
         buffer.writeUtf(packet.name, GrimoireData.MAX_NAME_LENGTH);
-        buffer.writeUtf(packet.source, GrimoireData.MAX_SOURCE_LENGTH);
+        buffer.writeUtf(packet.graph, GrimoireData.MAX_GRAPH_LENGTH);
         buffer.writeBoolean(packet.select);
     }
 
     public static SaveGrimoireSlotPacket decode(FriendlyByteBuf buffer) {
         return new SaveGrimoireSlotPacket(buffer.readVarInt(),
             buffer.readUtf(GrimoireData.MAX_NAME_LENGTH),
-            buffer.readUtf(GrimoireData.MAX_SOURCE_LENGTH), buffer.readBoolean());
+            buffer.readUtf(GrimoireData.MAX_GRAPH_LENGTH), buffer.readBoolean());
     }
 
     public static void handle(SaveGrimoireSlotPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
@@ -33,8 +33,8 @@ public record SaveGrimoireSlotPacket(int slot, String name, String source, boole
             ModNetwork.feedback(player, "INVALID: Hold the Grimoire while editing.", false, -1);
             return;
         }
-        GrimoireSpellService.Result result = GrimoireSpellService.save(
-            GrimoireData.get(player), packet.slot, packet.name, packet.source, packet.select);
+        GrimoireSpellService.Result result = GrimoireSpellService.saveGraph(
+            GrimoireData.get(player), packet.slot, packet.name, packet.graph, packet.select);
         if (result.success()) {
             ModNetwork.updateGrimoire(player,
                 result.message(), true, result.manifestations());

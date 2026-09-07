@@ -43,10 +43,10 @@ class SpellParserTest {
     }
 
     @Test
-    void rejectsInvalidModifiersAndSplitCounts() {
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("AMPLIFY BOLT"));
+    void rejectsUnsafeSplitCountsWhileAllowingSemanticallyPointlessPrograms() throws Exception {
+        assertEquals(SpellWordId.AMPLIFY, SpellParser.parse("AMPLIFY BOLT").node(0).word());
         assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT SPLIT(1)"));
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("SPLIT BOLT"));
+        assertEquals(SpellWordId.SPLIT, SpellParser.parse("SPLIT BOLT").node(0).word());
         assertThrows(SpellValidationException.class,
             () -> SpellParser.parse("BOLT SPLIT SPLIT SPLIT SPLIT SPLIT SPLIT SPLIT"));
     }
@@ -111,15 +111,15 @@ class SpellParserTest {
     }
 
     @Test
-    void notAndIfHaveRealConditionRequirements() throws Exception {
+    void notAndIfRemainRealRuntimeOperationsWithoutBlockingExperimentation() throws Exception {
         SpellProgram negated = SpellParser.parse("SENSE ENTITY HOSTILE NOT IF BREAK");
         assertEquals(SpellWordId.NOT, negated.node(3).word());
         assertEquals(SpellWordId.IF, negated.node(4).word());
 
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("NOT BOLT"));
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("IF BOLT"));
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("HOSTILE BOLT"));
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("NEAREST BOLT"));
+        assertEquals(SpellWordId.NOT, SpellParser.parse("NOT BOLT").node(0).word());
+        assertEquals(SpellWordId.IF, SpellParser.parse("IF BOLT").node(0).word());
+        assertEquals(SpellWordId.HOSTILE, SpellParser.parse("HOSTILE BOLT").node(0).word());
+        assertEquals(SpellWordId.NEAREST, SpellParser.parse("NEAREST BOLT").node(0).word());
     }
 
     @Test
@@ -131,11 +131,11 @@ class SpellParserTest {
         assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT DELAY"));
         assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT DELAY(0)"));
         assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT DELAY(201)"));
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("BOLT RELEASE"));
+        assertEquals(SpellWordId.RELEASE, SpellParser.parse("BOLT RELEASE").node(1).word());
     }
 
     @Test
-    void motionWordsRequireACompatibleManifestation() throws Exception {
+    void motionWordsCompileAndResolveCompatibilityAtRuntime() throws Exception {
         for (String source : List.of(
             "BOLT ACCELERATE IMPACT IGNITE",
             "BOLT GRAVITY",
@@ -145,17 +145,17 @@ class SpellParserTest {
         )) {
             assertTrue(SpellParser.parse(source).nodes().size() > 0, source);
         }
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("ACCELERATE"));
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("GRAVITY"));
+        assertEquals(SpellWordId.ACCELERATE, SpellParser.parse("ACCELERATE").node(0).word());
+        assertEquals(SpellWordId.GRAVITY, SpellParser.parse("GRAVITY").node(0).word());
     }
 
     @Test
-    void orbIsASecondManifestationAndRejectsBoltOnlyImpact() throws Exception {
+    void orbIsASecondManifestationAndIncompatibleImpactRemainsRepresentable() throws Exception {
         SpellProgram program = SpellParser.parse("ORB SPLIT LINK");
 
         assertEquals(SpellWordId.ORB, program.node(0).word());
         assertEquals(2, SpellProgramAnalysis.estimatedManifestations(program));
-        assertThrows(SpellValidationException.class, () -> SpellParser.parse("ORB IMPACT IGNITE"));
+        assertEquals(SpellWordId.IMPACT, SpellParser.parse("ORB IMPACT IGNITE").node(1).word());
     }
 
     @Test
@@ -179,6 +179,9 @@ class SpellParserTest {
             WordRegistry.presentations().stream().map(SpellWordPresentation::id).toList());
         for (SpellWordId id : SpellWordId.values()) {
             assertEquals(id, WordRegistry.presentation(id).id());
+            assertFalse(WordRegistry.presentation(id).subcategory().isBlank());
+            assertFalse(WordRegistry.presentation(id).outputs().isEmpty());
+            assertFalse(WordRegistry.presentation(id).forces().isEmpty());
             WordRegistry.get(id);
         }
     }

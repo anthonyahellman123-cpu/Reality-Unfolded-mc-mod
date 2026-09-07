@@ -3,8 +3,10 @@ package com.anthonyahellman.realityunfolded.spell;
 import com.anthonyahellman.realityunfolded.spell.word.*;
 
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class WordRegistry {
     private static final Map<SpellWordId, SpellWord> WORDS = new EnumMap<>(SpellWordId.class);
@@ -44,8 +46,8 @@ public final class WordRegistry {
             "Resolves only what the caster can physically reach.");
         register(SpellWordId.SENSE, new SenseWord(), "Sense", "◉", "LOGIC",
             "Begins an immediate world-state condition query.");
-        register(SpellWordId.IF, new IfWord(), "If", "?", "LOGIC",
-            "Runs its TRUE continuation only when the condition is true.");
+        registerBranch(SpellWordId.IF, new IfWord(), "If", "?", "LOGIC",
+            "Runs one of two explicit condition branches.");
         register(SpellWordId.NOT, new NotWord(), "Not", "¬", "LOGIC",
             "Negates the current boolean condition.");
         register(SpellWordId.DELAY, new DelayWord(), "Delay", "◷", "FLOW",
@@ -85,7 +87,7 @@ public final class WordRegistry {
                                  String glyph, String category, String description) {
         WORDS.put(id, implementation);
         PRESENTATIONS.put(id,
-            new SpellWordPresentation(id, displayName, glyph, category, description, null));
+            presentation(id, displayName, glyph, category, description, null, List.of(SpellPort.NEXT)));
     }
 
     private static void register(SpellWordId id, SpellWord implementation, String displayName,
@@ -93,6 +95,55 @@ public final class WordRegistry {
                                  SpellWordPresentation.ParameterSpec parameter) {
         WORDS.put(id, implementation);
         PRESENTATIONS.put(id,
-            new SpellWordPresentation(id, displayName, glyph, category, description, parameter));
+            presentation(id, displayName, glyph, category, description, parameter, List.of(SpellPort.NEXT)));
+    }
+
+    private static void registerBranch(SpellWordId id, SpellWord implementation, String displayName,
+                                       String glyph, String category, String description) {
+        WORDS.put(id, implementation);
+        PRESENTATIONS.put(id, presentation(id, displayName, glyph, category, description, null,
+            List.of(SpellPort.TRUE, SpellPort.FALSE)));
+    }
+
+    private static SpellWordPresentation presentation(SpellWordId id, String displayName, String glyph,
+                                                       String category, String description,
+                                                       SpellWordPresentation.ParameterSpec parameter,
+                                                       List<SpellPort> outputs) {
+        return new SpellWordPresentation(id, displayName, glyph, category, subcategory(category),
+            description, outputs, forces(category), manaCost(category), parameter);
+    }
+
+    private static String subcategory(String category) {
+        return switch (category) {
+            case "MANIFESTATION" -> "Forms";
+            case "CONTEXT" -> "Selectors";
+            case "LOGIC" -> "Conditions";
+            case "FLOW" -> "Events & Time";
+            case "MOTION" -> "Physics";
+            case "EFFECT" -> "Entity & Area Effects";
+            case "MODIFIER" -> "Power";
+            case "WORLD" -> "World Interaction";
+            default -> "General";
+        };
+    }
+
+    private static Set<SpellForce> forces(String category) {
+        return switch (category) {
+            case "EFFECT", "MANIFESTATION", "MOTION" -> EnumSet.of(SpellForce.COMBAT);
+            case "WORLD" -> EnumSet.of(SpellForce.MINING, SpellForce.UTILITY);
+            case "CONTEXT", "LOGIC", "FLOW" -> EnumSet.of(SpellForce.UTILITY);
+            case "MODIFIER" -> EnumSet.of(SpellForce.COMBAT, SpellForce.UTILITY);
+            default -> EnumSet.of(SpellForce.UTILITY);
+        };
+    }
+
+    private static int manaCost(String category) {
+        return switch (category) {
+            case "MANIFESTATION" -> 8;
+            case "EFFECT", "WORLD" -> 6;
+            case "MOTION", "MODIFIER" -> 3;
+            case "FLOW" -> 2;
+            default -> 1;
+        };
     }
 }

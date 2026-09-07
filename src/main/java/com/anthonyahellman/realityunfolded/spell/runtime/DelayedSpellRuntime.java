@@ -88,6 +88,19 @@ public final class DelayedSpellRuntime {
             .filter(value -> value.context.castId().equals(castId)).count();
     }
 
+    public static synchronized int cancelCaster(ServerLevel level, UUID casterId) {
+        List<Continuation> continuations = CONTINUATIONS.get(level);
+        if (continuations == null) return 0;
+        int before = continuations.size();
+        continuations.removeIf(value -> value.context.caster() != null
+            && value.context.caster().getUUID().equals(casterId));
+        if (continuations.isEmpty()) CONTINUATIONS.remove(level);
+        int removed = before - continuations.size();
+        if (removed > 0) RealityUnfolded.LOGGER.info(
+            "[RU SPELL] CONTINUATIONS_CANCELLED caster={} count={}", casterId, removed);
+        return removed;
+    }
+
     private record Continuation(long dueTick, SpellProgram program, List<Integer> nodes,
                                 SpellExecutionContext context) {}
 }
