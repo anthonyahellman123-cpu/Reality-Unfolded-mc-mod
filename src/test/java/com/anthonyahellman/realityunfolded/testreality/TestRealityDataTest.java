@@ -3,8 +3,6 @@ package com.anthonyahellman.realityunfolded.testreality;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.core.registries.BuiltInRegistries;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -21,7 +19,7 @@ class TestRealityDataTest {
         CompoundTag persisted = new CompoundTag();
         TestRealityData data = new TestRealityData(persisted, 1234L);
         TestRealityData.FillOperation operation = new TestRealityData.FillOperation(
-            new BlockPos(-3, 20, -2), new BlockPos(3, 24, 2), BuiltInRegistries.BLOCK.getKey(Blocks.STONE));
+            new BlockPos(-3, 20, -2), new BlockPos(3, 24, 2), new ResourceLocation("minecraft", "stone"));
 
         assertTrue(data.appendEdits(List.of(operation)));
         data.rememberScannedSubject(new ResourceLocation("minecraft", "zombie"));

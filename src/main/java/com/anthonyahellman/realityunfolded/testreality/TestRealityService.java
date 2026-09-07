@@ -14,7 +14,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 
@@ -34,8 +33,10 @@ public final class TestRealityService {
     public static final int CELL_STRIDE_CHUNKS = 128;
     public static final int MAX_ACTIVE_INSTANCES = 16;
     private static final int MAX_EDIT_AXIS = 64;
-    private static final Set<Block> EDIT_PALETTE = Set.of(
-        Blocks.AIR, Blocks.DIRT, Blocks.STONE, Blocks.OBSIDIAN, Blocks.BEDROCK);
+    private static final Set<ResourceLocation> EDIT_PALETTE = Set.of(
+        new ResourceLocation("minecraft", "air"), new ResourceLocation("minecraft", "dirt"),
+        new ResourceLocation("minecraft", "stone"), new ResourceLocation("minecraft", "obsidian"),
+        new ResourceLocation("minecraft", "bedrock"));
     private static final Map<MinecraftServer, RuntimeState> SERVERS = new WeakHashMap<>();
 
     private TestRealityService() {}
@@ -93,9 +94,10 @@ public final class TestRealityService {
     public static Result stageFill(ServerPlayer player, BlockPos first, BlockPos second, Block block) {
         ActiveInstance instance = owned(player);
         if (instance == null || !instance.editMode) return Result.failure("Enable edit mode inside your Test Reality first.");
-        if (!EDIT_PALETTE.contains(block)) return Result.failure("POC palette: air, dirt, stone, obsidian, bedrock.");
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(block);
+        if (!EDIT_PALETTE.contains(blockId)) return Result.failure("POC palette: air, dirt, stone, obsidian, bedrock.");
         TestRealityData.FillOperation absolute = new TestRealityData.FillOperation(first, second,
-            BuiltInRegistries.BLOCK.getKey(block));
+            blockId);
         if (!instance.contains(absolute.min()) || !instance.contains(absolute.max())) {
             return Result.failure("Edit must remain inside this Test Reality's provisional bounds.");
         }
