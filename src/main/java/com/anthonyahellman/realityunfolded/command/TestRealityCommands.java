@@ -74,8 +74,8 @@ public final class TestRealityCommands {
     }
 
     private static int status(CommandSourceStack source) throws CommandSyntaxException {
-        source.sendSuccess(() -> Component.literal("[RU] "
-            + TestRealityService.status(source.getPlayerOrException())), false);
+        String value = TestRealityService.status(source.getPlayerOrException());
+        source.sendSuccess(() -> Component.literal("[RU] " + value), false);
         return 1;
     }
 
