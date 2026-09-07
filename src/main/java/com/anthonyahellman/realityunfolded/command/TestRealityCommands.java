@@ -28,34 +28,34 @@ public final class TestRealityCommands {
 
     private static void register(CommandDispatcher<CommandSourceStack> dispatcher,
                                  net.minecraft.commands.CommandBuildContext buildContext) {
-        dispatcher.register(Commands.literal("ru").requires(source -> source.hasPermission(2))
-            .then(Commands.literal("reality")
-                .then(Commands.literal("enter").executes(context -> reply(context.getSource(),
-                    TestRealityService.enter(context.getSource().getPlayerOrException()))))
-                .then(Commands.literal("exit").executes(context -> reply(context.getSource(),
-                    TestRealityService.exit(context.getSource().getPlayerOrException()))))
-                .then(Commands.literal("status").executes(context -> status(context.getSource())))
-                .then(Commands.literal("seed")
-                    .then(Commands.argument("value", LongArgumentType.longArg()).executes(context -> reply(
-                        context.getSource(), TestRealityService.setSeed(context.getSource().getPlayerOrException(),
-                            LongArgumentType.getLong(context, "value"))))))
-                .then(Commands.literal("edit")
-                    .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> reply(
-                        context.getSource(), TestRealityService.setEditMode(context.getSource().getPlayerOrException(),
-                            BoolArgumentType.getBool(context, "enabled"))))))
-                .then(Commands.literal("save").executes(context -> reply(context.getSource(),
-                    TestRealityService.saveEdits(context.getSource().getPlayerOrException()))))
-                .then(Commands.literal("diagnostics")
-                    .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> diagnostics(
-                        context.getSource(), BoolArgumentType.getBool(context, "enabled")))))
-                .then(Commands.literal("fill")
-                    .then(Commands.argument("from", BlockPosArgument.blockPos())
-                        .then(Commands.argument("to", BlockPosArgument.blockPos())
-                            .then(Commands.argument("block", BlockStateArgument.block(buildContext))
-                                .executes(context -> fill(context.getSource(),
-                                    BlockPosArgument.getLoadedBlockPos(context, "from"),
-                                    BlockPosArgument.getLoadedBlockPos(context, "to"),
-                                    BlockStateArgument.getBlock(context, "block"))))))))));
+        var fill = Commands.literal("fill").then(Commands.argument("from", BlockPosArgument.blockPos())
+            .then(Commands.argument("to", BlockPosArgument.blockPos())
+                .then(Commands.argument("block", BlockStateArgument.block(buildContext))
+                    .executes(context -> fill(context.getSource(),
+                        BlockPosArgument.getLoadedBlockPos(context, "from"),
+                        BlockPosArgument.getLoadedBlockPos(context, "to"),
+                        BlockStateArgument.getBlock(context, "block"))))));
+        var reality = Commands.literal("reality")
+            .then(Commands.literal("enter").executes(context -> reply(context.getSource(),
+                TestRealityService.enter(context.getSource().getPlayerOrException()))))
+            .then(Commands.literal("exit").executes(context -> reply(context.getSource(),
+                TestRealityService.exit(context.getSource().getPlayerOrException()))))
+            .then(Commands.literal("status").executes(context -> status(context.getSource())))
+            .then(Commands.literal("seed")
+                .then(Commands.argument("value", LongArgumentType.longArg()).executes(context -> reply(
+                    context.getSource(), TestRealityService.setSeed(context.getSource().getPlayerOrException(),
+                        LongArgumentType.getLong(context, "value"))))))
+            .then(Commands.literal("edit")
+                .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> reply(
+                    context.getSource(), TestRealityService.setEditMode(context.getSource().getPlayerOrException(),
+                        BoolArgumentType.getBool(context, "enabled"))))))
+            .then(Commands.literal("save").executes(context -> reply(context.getSource(),
+                TestRealityService.saveEdits(context.getSource().getPlayerOrException()))))
+            .then(Commands.literal("diagnostics")
+                .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> diagnostics(
+                    context.getSource(), BoolArgumentType.getBool(context, "enabled")))))
+            .then(fill);
+        dispatcher.register(Commands.literal("ru").requires(source -> source.hasPermission(2)).then(reality));
     }
 
     private static int fill(CommandSourceStack source, net.minecraft.core.BlockPos from,
