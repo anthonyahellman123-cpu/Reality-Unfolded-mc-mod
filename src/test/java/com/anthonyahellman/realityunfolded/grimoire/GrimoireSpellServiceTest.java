@@ -1,5 +1,9 @@
 package com.anthonyahellman.realityunfolded.grimoire;
 
+import com.anthonyahellman.realityunfolded.spell.SpellPort;
+import com.anthonyahellman.realityunfolded.spell.SpellWordId;
+import com.anthonyahellman.realityunfolded.spell.programmer.SpellGraphCodec;
+import com.anthonyahellman.realityunfolded.spell.programmer.SpellGraphDraft;
 import net.minecraft.nbt.CompoundTag;
 import org.junit.jupiter.api.Test;
 
@@ -143,5 +147,37 @@ class GrimoireSpellServiceTest {
         assertEquals("Invalid", data.slot(1).name());
         assertEquals("HOSTILE NEAREST BOLT", data.slot(1).source());
         assertEquals(1, data.selectedSlot());
+    }
+
+    @Test
+    void positionedBranchGraphsRoundTripAndKeepSlotsIndependent() throws Exception {
+        GrimoireData data = new GrimoireData(new CompoundTag());
+        SpellGraphDraft first = new SpellGraphDraft();
+        int branch = first.add(SpellWordId.IF, 0, 0).id();
+        int truth = first.add(SpellWordId.BOLT, 160, -70).id();
+        int lie = first.add(SpellWordId.BREAK, 160, 70).id();
+        first.connect(branch, SpellPort.TRUE, truth);
+        first.connect(branch, SpellPort.FALSE, lie);
+        SpellGraphDraft second = new SpellGraphDraft();
+        second.add(SpellWordId.ORB, 7, 11);
+
+        assertTrue(GrimoireSpellService.saveGraph(data, 1, "Choice", SpellGraphCodec.encode(first), true).success());
+        assertTrue(GrimoireSpellService.saveGraph(data, 6, "Orb", SpellGraphCodec.encode(second), false).success());
+
+        assertEquals(1, data.selectedSlot());
+        assertEquals(first.nodes(), SpellGraphCodec.decode(data.slot(1).graph()).nodes());
+        assertEquals(second.nodes(), SpellGraphCodec.decode(data.slot(6).graph()).nodes());
+    }
+
+    @Test
+    void legacyTextProgramsMigrateToPositionedGraphs() throws Exception {
+        GrimoireData data = new GrimoireData(new CompoundTag());
+        assertTrue(GrimoireSpellService.save(data, 2, "Legacy", "BOLT HOME IMPACT IGNITE", false).success());
+
+        SpellGraphDraft graph = GrimoireSpellService.graph(data.slot(2));
+
+        assertEquals(4, graph.nodes().size());
+        assertEquals(3, graph.edges().size());
+        assertEquals(SpellWordId.BOLT, graph.node(graph.rootId()).word());
     }
 }

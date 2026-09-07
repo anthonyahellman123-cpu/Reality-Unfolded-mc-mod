@@ -1,12 +1,9 @@
 package com.anthonyahellman.realityunfolded.spell.programmer;
 
-import com.anthonyahellman.realityunfolded.grimoire.GrimoireData;
-import com.anthonyahellman.realityunfolded.grimoire.GrimoireSpellService;
 import com.anthonyahellman.realityunfolded.spell.SpellPort;
 import com.anthonyahellman.realityunfolded.spell.SpellProgram;
 import com.anthonyahellman.realityunfolded.spell.SpellValidationException;
 import com.anthonyahellman.realityunfolded.spell.SpellWordId;
-import net.minecraft.nbt.CompoundTag;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -42,7 +39,7 @@ class SpellGraphCompilerTest {
         SpellGraphDraft graph = new SpellGraphDraft();
         int condition = graph.add(SpellWordId.IF, 0, 0).id();
         int bolt = graph.add(SpellWordId.BOLT, 140, -40).id();
-        graph.connect(condition, bolt, SpellPort.TRUE);
+        graph.connect(condition, SpellPort.TRUE, bolt);
 
         SpellProgram program = SpellGraphCompiler.compile(graph);
 
@@ -76,40 +73,13 @@ class SpellGraphCompilerTest {
         assertEquals("Combat", analysis.force());
     }
 
-    @Test
-    void graphSavesRoundTripsAndKeepsSlotsIndependent() throws Exception {
-        GrimoireData data = new GrimoireData(new CompoundTag());
-        SpellGraphDraft first = branchGraph();
-        SpellGraphDraft second = new SpellGraphDraft();
-        second.add(SpellWordId.ORB, 7, 11);
-
-        assertTrue(GrimoireSpellService.saveGraph(data, 1, "Choice", SpellGraphCodec.encode(first), true).success());
-        assertTrue(GrimoireSpellService.saveGraph(data, 6, "Orb", SpellGraphCodec.encode(second), false).success());
-
-        assertEquals(1, data.selectedSlot());
-        assertEquals(first.nodes(), SpellGraphCodec.decode(data.slot(1).graph()).nodes());
-        assertEquals(second.nodes(), SpellGraphCodec.decode(data.slot(6).graph()).nodes());
-    }
-
-    @Test
-    void legacyTextProgramsMigrateToPositionedGraphs() throws Exception {
-        GrimoireData data = new GrimoireData(new CompoundTag());
-        assertTrue(GrimoireSpellService.save(data, 2, "Legacy", "BOLT HOME IMPACT IGNITE", false).success());
-
-        SpellGraphDraft graph = SpellGraphCodec.decode(GrimoireSpellService.graph(data, 2));
-
-        assertEquals(4, graph.nodes().size());
-        assertEquals(3, graph.edges().size());
-        assertEquals(SpellWordId.BOLT, graph.node(graph.rootId()).word());
-    }
-
     private static SpellGraphDraft branchGraph() {
         SpellGraphDraft graph = new SpellGraphDraft();
         int branch = graph.add(SpellWordId.IF, 0, 0).id();
         int truth = graph.add(SpellWordId.BOLT, 160, -70).id();
         int lie = graph.add(SpellWordId.BREAK, 160, 70).id();
-        graph.connect(branch, truth, SpellPort.TRUE);
-        graph.connect(branch, lie, SpellPort.FALSE);
+        graph.connect(branch, SpellPort.TRUE, truth);
+        graph.connect(branch, SpellPort.FALSE, lie);
         return graph;
     }
 }
