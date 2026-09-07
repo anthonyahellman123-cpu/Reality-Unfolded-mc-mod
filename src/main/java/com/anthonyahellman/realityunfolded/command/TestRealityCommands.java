@@ -6,6 +6,7 @@ import com.anthonyahellman.realityunfolded.testreality.TestRealityService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.blocks.BlockInput;
@@ -59,12 +60,12 @@ public final class TestRealityCommands {
     }
 
     private static int fill(CommandSourceStack source, net.minecraft.core.BlockPos from,
-                            net.minecraft.core.BlockPos to, BlockInput block) throws Exception {
+                            net.minecraft.core.BlockPos to, BlockInput block) throws CommandSyntaxException {
         return reply(source, TestRealityService.stageFill(source.getPlayerOrException(), from, to,
             block.getState().getBlock()));
     }
 
-    private static int diagnostics(CommandSourceStack source, boolean enabled) throws Exception {
+    private static int diagnostics(CommandSourceStack source, boolean enabled) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         TestRealityData.get(player).setDiagnostics(enabled);
         source.sendSuccess(() -> Component.literal("[RU] Test Reality diagnostics "
@@ -72,7 +73,7 @@ public final class TestRealityCommands {
         return 1;
     }
 
-    private static int status(CommandSourceStack source) throws Exception {
+    private static int status(CommandSourceStack source) throws CommandSyntaxException {
         source.sendSuccess(() -> Component.literal("[RU] "
             + TestRealityService.status(source.getPlayerOrException())), false);
         return 1;
