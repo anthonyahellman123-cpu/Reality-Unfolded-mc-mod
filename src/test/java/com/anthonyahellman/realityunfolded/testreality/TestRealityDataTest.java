@@ -62,11 +62,11 @@ class TestRealityDataTest {
     @Test
     void activeCellsAreWidelySeparatedAndReusableIdentifiers() {
         Set<Long> positions = new HashSet<>();
-        for (int i = 0; i < TestRealityService.MAX_ACTIVE_INSTANCES; i++) {
-            var center = TestRealityService.cellCenter(i);
+        for (int i = 0; i < TestRealityCells.MAX_ACTIVE; i++) {
+            var center = TestRealityCells.center(i);
             assertTrue(positions.add(center.toLong()));
             if (i > 0) assertTrue(Math.max(Math.abs(center.x), Math.abs(center.z))
-                >= TestRealityService.CELL_STRIDE_CHUNKS);
+                >= TestRealityCells.STRIDE_CHUNKS);
         }
     }
 }

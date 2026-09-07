@@ -30,8 +30,8 @@ import java.util.WeakHashMap;
 public final class TestRealityService {
     public static final ResourceKey<Level> LEVEL_KEY = ResourceKey.create(Registries.DIMENSION,
         new ResourceLocation(RealityUnfolded.MOD_ID, "test_reality"));
-    public static final int CELL_STRIDE_CHUNKS = 128;
-    public static final int MAX_ACTIVE_INSTANCES = 16;
+    public static final int CELL_STRIDE_CHUNKS = TestRealityCells.STRIDE_CHUNKS;
+    public static final int MAX_ACTIVE_INSTANCES = TestRealityCells.MAX_ACTIVE;
     private static final int MAX_EDIT_AXIS = 64;
     private static final Set<ResourceLocation> EDIT_PALETTE = Set.of(
         new ResourceLocation("minecraft", "air"), new ResourceLocation("minecraft", "dirt"),
@@ -53,7 +53,7 @@ public final class TestRealityService {
         data.setReturnTicket(new TestRealityData.ReturnTicket(player.serverLevel().dimension(), player.getX(),
             player.getY(), player.getZ(), player.getYRot(), player.getXRot()));
         int cellIndex = firstFreeCell(state);
-        ChunkPos center = cellCenter(cellIndex);
+        ChunkPos center = TestRealityCells.center(cellIndex);
         ActiveInstance instance = new ActiveInstance(player.getUUID(), UUID.randomUUID(), cellIndex, center,
             data.radiusChunks(), data.seed(), data.edits(), data.diagnostics());
         state.byOwner.put(player.getUUID(), instance);
@@ -187,21 +187,6 @@ public final class TestRealityService {
             state.byOwner.clear();
             state.byCell.clear();
         }
-    }
-
-    static ChunkPos cellCenter(int index) {
-        if (index == 0) return new ChunkPos(0, 0);
-        int ring = (int) Math.ceil((Math.sqrt(index + 1.0D) - 1.0D) / 2.0D);
-        int side = ring * 2;
-        int maximum = (ring * 2 + 1) * (ring * 2 + 1) - 1;
-        int offset = maximum - index;
-        int x;
-        int z;
-        if (offset < side) { x = ring - offset; z = -ring; }
-        else if (offset < side * 2) { x = -ring; z = -ring + (offset - side); }
-        else if (offset < side * 3) { x = -ring + (offset - side * 2); z = ring; }
-        else { x = ring; z = ring - (offset - side * 3); }
-        return new ChunkPos(x * CELL_STRIDE_CHUNKS, z * CELL_STRIDE_CHUNKS);
     }
 
     private static void prepareChunk(ActiveInstance instance, LevelChunk chunk) {
