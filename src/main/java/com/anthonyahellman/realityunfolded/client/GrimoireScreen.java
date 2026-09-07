@@ -16,13 +16,15 @@ import java.util.*;
 
 /** Stable freeform graph editor foundation. Word behavior remains registry/runtime-owned. */
 public final class GrimoireScreen extends Screen {
-    private static final int PALETTE_WIDTH = 190;
-    private static final int HEADER_HEIGHT = 24;
-    private static final int FOOTER_HEIGHT = 104;
-    private static final int NODE_WIDTH = 112;
-    private static final int NODE_HEIGHT = 36;
+    private static final int PALETTE_WIDTH = 178;
+    private static final int INSPECTOR_WIDTH = 212;
+    private static final int HEADER_HEIGHT = 22;
+    private static final int FOOTER_HEIGHT = 82;
+    private static final int NODE_WIDTH = 106;
+    private static final int NODE_HEIGHT = 34;
     private static final int PORT_RADIUS = 5;
-    private static final int PALETTE_ROW_HEIGHT = 22;
+    private static final int PALETTE_ROW_HEIGHT = 20;
+    private static final int CATEGORY_ROW_HEIGHT = 15;
     private static final double MIN_ZOOM = 0.45D;
     private static final double MAX_ZOOM = 2.0D;
 
@@ -33,6 +35,10 @@ public final class GrimoireScreen extends Screen {
     private SpellGraphDraft graph = new SpellGraphDraft();
     private EditBox searchBox;
     private EditBox nameBox;
+    private Button setRootButton;
+    private Button parameterMinusButton;
+    private Button parameterPlusButton;
+    private Button deleteButton;
     private int selectedSlot;
     private int editingSlot;
     private int selectedNode = -1;
@@ -64,56 +70,58 @@ public final class GrimoireScreen extends Screen {
         clearWidgets();
         slotButtons.clear();
         categoryButtons.clear();
-        searchBox = new EditBox(font, 7, 29, PALETTE_WIDTH - 14, 18, Component.literal("Search words"));
+        searchBox = new EditBox(font, 6, 18, PALETTE_WIDTH - 12, 18, Component.literal("Search words"));
         searchBox.setHint(Component.literal("Search words..."));
         searchBox.setResponder(ignored -> paletteScroll = 0);
         addRenderableWidget(searchBox);
 
         List<String> categories = categories();
-        int categoryWidth = (PALETTE_WIDTH - 17) / 2;
         for (int i = 0; i < categories.size(); i++) {
             String category = categories.get(i);
-            Button button = Button.builder(Component.literal(shortCategory(category)), ignored -> {
+            Button button = Button.builder(Component.literal(displayCategory(category)), ignored -> {
                 selectedCategory = category;
                 paletteScroll = 0;
                 refreshCategoryButtons();
-            }).bounds(7 + i % 2 * (categoryWidth + 3), 51 + i / 2 * 18, categoryWidth, 16).build();
+            }).bounds(6, categoryListTop() + i * CATEGORY_ROW_HEIGHT,
+                PALETTE_WIDTH - 12, CATEGORY_ROW_HEIGHT - 1).build();
             categoryButtons.add(addRenderableWidget(button));
         }
 
         int footerTop = footerTop();
-        nameBox = new EditBox(font, PALETTE_WIDTH + 10, footerTop + 18,
-            Math.max(90, width - PALETTE_WIDTH - 370), 18, Component.literal("Spell name"));
+        nameBox = new EditBox(font, 8, footerTop + 18,
+            Math.min(224, Math.max(120, width - 500)), 18, Component.literal("Spell name"));
         nameBox.setMaxLength(GrimoireData.MAX_NAME_LENGTH);
         addRenderableWidget(nameBox);
 
-        int slotWidth = Math.max(42, (width - 14) / GrimoireData.SLOT_COUNT - 3);
+        int slotWidth = Math.max(42, (width - 13) / GrimoireData.SLOT_COUNT - 2);
         for (int i = 0; i < GrimoireData.SLOT_COUNT; i++) {
             int slot = i;
             Button button = Button.builder(Component.empty(), ignored -> loadSlot(slot))
-                .bounds(7 + i * (slotWidth + 3), height - 22, slotWidth, 17).build();
+                .bounds(6 + i * (slotWidth + 2), height - 20, slotWidth, 16).build();
             slotButtons.add(addRenderableWidget(button));
         }
 
-        int actionsX = Math.max(PALETTE_WIDTH + 112, width - 348);
+        int actionsX = width - 204;
         addRenderableWidget(Button.builder(Component.literal("Save"), ignored -> save(false))
-            .bounds(actionsX, footerTop + 16, 72, 20).build());
+            .bounds(actionsX, footerTop + 16, 74, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Save + Active"), ignored -> save(true))
-            .bounds(actionsX + 76, footerTop + 16, 104, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Select Saved"), ignored -> selectSaved())
-            .bounds(actionsX + 184, footerTop + 16, 94, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Set Root"), ignored -> setRoot())
-            .bounds(actionsX, footerTop + 40, 72, 18).build());
-        addRenderableWidget(Button.builder(Component.literal("Param −"), ignored -> adjustParameter(-1))
-            .bounds(actionsX + 76, footerTop + 40, 68, 18).build());
-        addRenderableWidget(Button.builder(Component.literal("Param +"), ignored -> adjustParameter(1))
-            .bounds(actionsX + 148, footerTop + 40, 68, 18).build());
-        addRenderableWidget(Button.builder(Component.literal("Delete"), ignored -> deleteSelected())
-            .bounds(actionsX + 220, footerTop + 40, 58, 18).build());
+            .bounds(actionsX + 78, footerTop + 16, 120, 20).build());
+
+        int inspectorX = inspectorLeft() + 8;
+        int inspectorActionsY = footerTop - 48;
+        setRootButton = addRenderableWidget(Button.builder(Component.literal("Set as Root"), ignored -> setRoot())
+            .bounds(inspectorX, inspectorActionsY, 92, 18).build());
+        deleteButton = addRenderableWidget(Button.builder(Component.literal("Delete Node"), ignored -> deleteSelected())
+            .bounds(width - 104, inspectorActionsY, 96, 18).build());
+        parameterMinusButton = addRenderableWidget(Button.builder(Component.literal("Parameter −"), ignored -> adjustParameter(-1))
+            .bounds(inspectorX, inspectorActionsY + 22, 92, 18).build());
+        parameterPlusButton = addRenderableWidget(Button.builder(Component.literal("Parameter +"), ignored -> adjustParameter(1))
+            .bounds(width - 104, inspectorActionsY + 22, 96, 18).build());
 
         loadEditingSlot();
         refreshSlotButtons();
         refreshCategoryButtons();
+        updateInspectorControls();
     }
 
     private List<String> categories() {
@@ -123,18 +131,18 @@ public final class GrimoireScreen extends Screen {
         return List.copyOf(values);
     }
 
-    private String shortCategory(String value) {
-        return switch (value) {
-            case "MANIFESTATION" -> "FORMS";
-            case "MODIFIER" -> "POWER";
-            default -> value;
-        };
+    private String displayCategory(String value) {
+        String normalized = value.toLowerCase(Locale.ROOT).replace('_', ' ');
+        return normalized.isEmpty() ? normalized
+            : Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1);
     }
 
     private void refreshCategoryButtons() {
         List<String> categories = categories();
         for (int i = 0; i < categoryButtons.size(); i++) {
-            categoryButtons.get(i).active = !categories.get(i).equals(selectedCategory);
+            boolean selected = categories.get(i).equals(selectedCategory);
+            categoryButtons.get(i).setMessage(Component.literal((selected ? "◆ " : "")
+                + displayCategory(categories.get(i))));
         }
     }
 
@@ -149,8 +157,10 @@ public final class GrimoireScreen extends Screen {
                 .thenComparing(SpellWordPresentation::displayName)).toList();
     }
 
-    private int paletteListTop() { return 126; }
+    private int categoryListTop() { return 53; }
+    private int paletteListTop() { return categoryListTop() + categories().size() * CATEGORY_ROW_HEIGHT + 18; }
     private int footerTop() { return height - FOOTER_HEIGHT; }
+    private int inspectorLeft() { return Math.max(PALETTE_WIDTH + 240, width - INSPECTOR_WIDTH); }
     private int paletteVisibleRows() { return Math.max(1, (footerTop() - paletteListTop() - 4) / PALETTE_ROW_HEIGHT); }
 
     private void loadSlot(int slot) {
@@ -178,6 +188,7 @@ public final class GrimoireScreen extends Screen {
         panX = 36;
         panY = 28;
         zoom = 1.0D;
+        updateInspectorControls();
     }
 
     private void save(boolean select) {
@@ -191,14 +202,35 @@ public final class GrimoireScreen extends Screen {
         }
     }
 
-    private void selectSaved() { ModNetwork.selectSavedSlot(editingSlot); }
-    private void setRoot() { if (graph.node(selectedNode) != null) graph.setRootId(selectedNode); }
-    private void adjustParameter(int direction) { graph.adjustParameter(selectedNode, direction); }
+    private void setRoot() {
+        if (graph.node(selectedNode) != null) graph.setRootId(selectedNode);
+        updateInspectorControls();
+    }
+
+    private void adjustParameter(int direction) {
+        graph.adjustParameter(selectedNode, direction);
+        updateInspectorControls();
+    }
+
     private void deleteSelected() {
         if (selectedNode < 0) return;
         graph.remove(selectedNode);
         selectedNode = -1;
         pendingWireNode = -1;
+        updateInspectorControls();
+    }
+
+    private void updateInspectorControls() {
+        if (setRootButton == null) return;
+        SpellGraphDraft.Node node = graph.node(selectedNode);
+        boolean selected = node != null;
+        boolean parameterized = selected && WordRegistry.presentation(node.word()).hasPlayerParameter();
+        setRootButton.visible = selected;
+        setRootButton.active = selected && graph.rootId() != selectedNode;
+        setRootButton.setMessage(Component.literal(graph.rootId() == selectedNode ? "Root Node" : "Set as Root"));
+        deleteButton.visible = selected;
+        parameterMinusButton.visible = parameterized;
+        parameterPlusButton.visible = parameterized;
     }
 
     public void acceptServerState(GrimoireStatePacket state) {
@@ -256,6 +288,7 @@ public final class GrimoireScreen extends Screen {
                 }
                 int node = nodeAt(mouseX, mouseY);
                 selectedNode = node;
+                updateInspectorControls();
                 if (node >= 0) {
                     SpellGraphDraft.Node value = graph.node(node);
                     dragNodeOffsetX = screenToWorldX(mouseX) - value.x();
@@ -301,6 +334,7 @@ public final class GrimoireScreen extends Screen {
                     statusColor = 0xFFFF7474;
                 }
             }
+            updateInspectorControls();
             paletteDrag = null;
             return true;
         }
@@ -345,22 +379,41 @@ public final class GrimoireScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics);
         int footer = footerTop();
+        int inspector = inspectorLeft();
         graphics.fill(0, 0, width, height, 0xF00C0815);
         graphics.fill(0, 0, PALETTE_WIDTH, footer, 0xFF1A1228);
-        graphics.fill(PALETTE_WIDTH, HEADER_HEIGHT, width, footer, 0xFF100B19);
+        graphics.fill(PALETTE_WIDTH, 0, inspector, footer, 0xFF100B19);
+        graphics.fill(inspector, 0, width, footer, 0xFF181022);
         drawGrid(graphics, footer);
         graphics.fill(0, footer, width, height, 0xFF21162F);
         graphics.fill(PALETTE_WIDTH - 1, 0, PALETTE_WIDTH + 1, footer, 0xFF6842A8);
+        graphics.fill(inspector - 1, 0, inspector + 1, footer, 0xFF6842A8);
         graphics.fill(0, footer - 1, width, footer + 1, 0xFF6842A8);
-        graphics.drawCenteredString(font, "SPELLCRAFT — INSTRUCTIONS FOR REALITY", width / 2, 8, 0xFFE9DEFF);
-        graphics.drawString(font, "SEARCH / CATEGORIES", 7, 17, 0xFFBBA7DC, false);
-        graphics.drawString(font, "WORDS — DRAG TO CANVAS", 7, paletteListTop() - 11, 0xFFBBA7DC, false);
+        graphics.drawCenteredString(font, "SPELL CANVAS", (PALETTE_WIDTH + inspector) / 2, 7, 0xFFD8C8EF);
+        graphics.drawString(font, "SEARCH", 6, 6, 0xFFBBA7DC, false);
+        graphics.drawString(font, "CATEGORIES", 6, categoryListTop() - 11, 0xFFBBA7DC, false);
+        graphics.drawString(font, "WORDS", 6, paletteListTop() - 11, 0xFFBBA7DC, false);
+        for (int i = 0; i < categoryButtons.size(); i++) {
+            if (categories().get(i).equals(selectedCategory)) {
+                int y = categoryListTop() + i * CATEGORY_ROW_HEIGHT;
+                graphics.fill(2, y, 5, y + CATEGORY_ROW_HEIGHT - 1, 0xFFB882FF);
+            }
+        }
         drawPalette(graphics, mouseX, mouseY);
+        graphics.enableScissor(PALETTE_WIDTH + 1, HEADER_HEIGHT, inspector - 1, footer - 1);
         drawConnections(graphics);
         drawPendingWire(graphics, mouseX, mouseY);
         drawNodes(graphics, mouseX, mouseY);
+        graphics.disableScissor();
+        drawInspector(graphics);
         drawFooter(graphics);
+        updateInspectorControls();
         super.render(graphics, mouseX, mouseY, partialTick);
+        SpellWordPresentation hoveredWord = paletteWordAt(mouseX, mouseY);
+        if (hoveredWord != null && paletteDrag == null) {
+            graphics.renderTooltip(font, Component.literal(hoveredWord.category() + " / "
+                + hoveredWord.subcategory() + " — " + hoveredWord.description()), mouseX, mouseY);
+        }
         if (paletteDrag != null) {
             graphics.fill(mouseX - 48, mouseY - 10, mouseX + 48, mouseY + 10, 0xEE3C285B);
             graphics.drawCenteredString(font, paletteDrag.glyph() + " " + paletteDrag.displayName(), mouseX,
@@ -372,8 +425,12 @@ public final class GrimoireScreen extends Screen {
         int spacing = Math.max(12, (int) Math.round(32 * zoom));
         int startX = (int) ((PALETTE_WIDTH + panX) % spacing);
         int startY = (int) ((HEADER_HEIGHT + panY) % spacing);
-        for (int x = startX; x < width; x += spacing) if (x >= PALETTE_WIDTH) graphics.vLine(x, HEADER_HEIGHT, footer, 0x192D2141);
-        for (int y = startY; y < footer; y += spacing) if (y >= HEADER_HEIGHT) graphics.hLine(PALETTE_WIDTH, width, y, 0x192D2141);
+        for (int x = startX; x < inspectorLeft(); x += spacing) {
+            if (x >= PALETTE_WIDTH) graphics.vLine(x, HEADER_HEIGHT, footer, 0x192D2141);
+        }
+        for (int y = startY; y < footer; y += spacing) {
+            if (y >= HEADER_HEIGHT) graphics.hLine(PALETTE_WIDTH, inspectorLeft(), y, 0x192D2141);
+        }
     }
 
     private void drawPalette(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -387,8 +444,6 @@ public final class GrimoireScreen extends Screen {
             graphics.fill(5, y, PALETTE_WIDTH - 5, y + 19, hovered ? 0xFF4C326C : 0xFF2B1D3E);
             graphics.drawString(font, word.glyph() + " " + word.displayName(), 10, y + 5, 0xFFF0E8FF, false);
             graphics.drawString(font, trim(word.subcategory(), 70), PALETTE_WIDTH - 75, y + 5, 0xFF9D89BC, false);
-            if (hovered) graphics.renderTooltip(font, Component.literal(word.category() + " / " + word.subcategory()
-                + " — " + word.description()), mouseX, mouseY);
         }
     }
 
@@ -399,8 +454,7 @@ public final class GrimoireScreen extends Screen {
             if (from == null || to == null) continue;
             Point start = outputPoint(from, edge.port());
             Point end = inputPoint(to);
-            int color = edge.port() == SpellPort.FALSE ? 0xFFB25B88
-                : edge.port() == SpellPort.TRUE ? 0xFF72D9A4 : 0xFF9A6DE0;
+            int color = portColor(edge.port());
             drawWire(graphics, start.x(), start.y(), end.x(), end.y(), color);
         }
     }
@@ -443,31 +497,86 @@ public final class GrimoireScreen extends Screen {
                 input.y() + PORT_RADIUS, 0xFF7B6B91);
             for (SpellPort port : presentation.outputs()) {
                 Point output = outputPoint(node, port);
-                int color = port == SpellPort.FALSE ? 0xFFB25B88 : port == SpellPort.TRUE ? 0xFF72D9A4 : 0xFF9A6DE0;
+                int color = portColor(port);
                 graphics.fill(output.x() - PORT_RADIUS, output.y() - PORT_RADIUS,
                     output.x() + PORT_RADIUS, output.y() + PORT_RADIUS, color);
+                String label = port == SpellPort.TRUE ? "T" : port == SpellPort.FALSE ? "F" : "";
+                if (!label.isEmpty()) {
+                    graphics.drawString(font, label, output.x() - 12, output.y() - 4, color, false);
+                }
             }
-            if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h) {
-                graphics.renderTooltip(font, Component.literal(presentation.description()), mouseX, mouseY);
-            }
+        }
+    }
+
+    private int portColor(SpellPort port) {
+        return port == SpellPort.FALSE ? 0xFFFF6B6B
+            : port == SpellPort.TRUE ? 0xFF55E6A5 : 0xFFB882FF;
+    }
+
+    private void drawInspector(GuiGraphics graphics) {
+        int left = inspectorLeft();
+        int textX = left + 10;
+        graphics.drawString(font, "NODE DETAILS", textX, 8, 0xFFD8C8EF, false);
+        SpellGraphDraft.Node node = graph.node(selectedNode);
+        if (node == null) {
+            graphics.drawString(font, "No node selected.", textX, 31, 0xFF8F819F, false);
+            return;
+        }
+
+        SpellWordPresentation word = WordRegistry.presentation(node.word());
+        graphics.fill(left + 8, 25, width - 8, 54, 0xFF2B1D3E);
+        graphics.drawString(font, word.glyph(), textX, 34, 0xFFCAA4FF, false);
+        graphics.drawString(font, trim(word.displayName(), INSPECTOR_WIDTH - 42), textX + 22, 31,
+            0xFFF3ECFF, false);
+        graphics.drawString(font, displayCategory(word.category()) + " / " + displayCategory(word.subcategory()),
+            textX + 22, 43, 0xFFAA98BD, false);
+
+        int y = 65;
+        for (var line : font.split(Component.literal(word.description()), INSPECTOR_WIDTH - 20)) {
+            graphics.drawString(font, line, textX, y, 0xFFCFC2DC, false);
+            y += 10;
+        }
+        y += 7;
+        graphics.drawString(font, node.id() == graph.rootId() ? "ROOT: Yes" : "ROOT: No",
+            textX, y, node.id() == graph.rootId() ? 0xFFFFCC67 : 0xFF9D8BAB, false);
+        y += 14;
+        if (word.hasPlayerParameter()) {
+            String parameter = node.integerArgument() + " " + word.parameter().unit();
+            graphics.drawString(font, "PARAMETER: " + parameter, textX, y, 0xFFE4D5F7, false);
+            y += 14;
+        }
+
+        long incoming = graph.edges().stream().filter(edge -> edge.to() == node.id()).count();
+        graphics.drawString(font, "INPUT WIRES: " + incoming, textX, y, 0xFFAA98BD, false);
+        y += 14;
+        graphics.drawString(font, "OUTPUTS", textX, y, 0xFFBBA7DC, false);
+        y += 12;
+        for (SpellPort port : word.outputs()) {
+            SpellGraphDraft.Edge edge = graph.edges().stream()
+                .filter(candidate -> candidate.from() == node.id() && candidate.port() == port)
+                .findFirst().orElse(null);
+            SpellGraphDraft.Node targetNode = edge == null ? null : graph.node(edge.to());
+            String target = targetNode == null ? "Not connected" : WordRegistry.presentation(targetNode.word()).displayName();
+            graphics.drawString(font, port.name() + " → " + trim(target, INSPECTOR_WIDTH - 78),
+                textX, y, portColor(port), false);
+            y += 12;
         }
     }
 
     private void drawFooter(GuiGraphics graphics) {
         int top = footerTop();
         SpellGraphAnalysis.Summary summary = SpellGraphAnalysis.summarize(graph);
-        graphics.drawString(font, "SPELL: " + nameBox.getValue(), PALETTE_WIDTH + 10, top + 7, 0xFFE8DDF5, false);
-        graphics.drawString(font, "Connected " + summary.connectedNodes() + "  •  Unconnected "
-            + summary.disconnectedNodes(), PALETTE_WIDTH + 10, top + 43, 0xFFB8A8CC, false);
-        graphics.drawString(font, "Wire: output then input. Right/middle drag pans; wheel zooms.",
-            PALETTE_WIDTH + 10, top + 57, 0xFF9B8BAB, false);
-        graphics.drawString(font, trim(status, Math.max(100, width - PALETTE_WIDTH - 22)),
-            PALETTE_WIDTH + 10, top + 72, statusColor, false);
-        int infoX = Math.max(PALETTE_WIDTH + 10, width - 250);
-        graphics.fill(infoX - 5, top + 62, width - 7, top + 95, 0x662B1C3F);
-        graphics.drawString(font, "FORCE OF SPELL: " + summary.force(), infoX, top + 67, 0xFFE5D5FA, false);
-        graphics.drawString(font, "LIVE MANA COST: " + summary.informationalManaCost() + " (info)",
-            infoX, top + 81, 0xFFBDA9D8, false);
+        graphics.drawString(font, "CURRENT SPELL", 8, top + 7, 0xFFBBA7DC, false);
+        int infoX = nameBox.getX() + nameBox.getWidth() + 12;
+        graphics.drawString(font, "NODES  " + summary.connectedNodes() + " connected / "
+            + summary.disconnectedNodes() + " loose", infoX, top + 8, 0xFFB8A8CC, false);
+        graphics.drawString(font, "FORCE  " + summary.force(), infoX, top + 22, 0xFFE5D5FA, false);
+        int manaX = Math.min(width - 340, infoX + 150);
+        if (manaX > infoX + 80) {
+            graphics.drawString(font, "MANA  " + summary.informationalManaCost() + " (info)",
+                manaX, top + 22, 0xFFBDA9D8, false);
+        }
+        graphics.drawString(font, trim(status, Math.max(100, width - 16)), 8, top + 43, statusColor, false);
     }
 
     private SpellWordPresentation paletteWordAt(double mouseX, double mouseY) {
@@ -518,7 +627,7 @@ public final class GrimoireScreen extends Screen {
     }
 
     private boolean insideCanvas(double x, double y) {
-        return x >= PALETTE_WIDTH && x < width && y >= HEADER_HEIGHT && y < footerTop();
+        return x >= PALETTE_WIDTH && x < inspectorLeft() && y >= HEADER_HEIGHT && y < footerTop();
     }
 
     private int worldToScreenX(int worldX) { return (int) Math.round(PALETTE_WIDTH + panX + worldX * zoom); }
